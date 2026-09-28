@@ -113,6 +113,19 @@ html::-webkit-scrollbar {
   scrollbar-color: rgba(239, 68, 68, 0.35) transparent;
 }
 
+/* Completely suppress all scrollbars on mobile phones (< 768px) */
+@media (max-width: 767px) {
+  ::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+  * {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

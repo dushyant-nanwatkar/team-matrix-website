@@ -134,6 +134,12 @@ export default function MinimalScrollBar() {
       const canScroll = maxScroll > 10;
       setIsScrollable(canScroll);
 
+      // On mobile viewports under 768px where the scrollbar is hidden, skip DOM updates
+      if (window.innerWidth < 768) {
+        rafId = requestAnimationFrame(update);
+        return;
+      }
+
       if (canScroll && trackRef.current && thumbRef.current) {
         const trackHeight = trackRef.current.clientHeight;
         // Proportional thumb height with minimum clamp
@@ -238,7 +244,7 @@ export default function MinimalScrollBar() {
       onPointerLeave={() => {
         if (!isDraggingRef.current) setIsHovered(false);
       }}
-      className={`fixed right-1 sm:right-2 top-0 bottom-0 z-[280] flex items-center justify-center py-6 sm:py-8 pointer-events-auto select-none transition-opacity duration-300 ${
+      className={`fixed right-1 sm:right-2 top-0 bottom-0 z-[280] hidden md:flex items-center justify-center py-6 sm:py-8 pointer-events-auto select-none transition-opacity duration-300 ${
         isHovered || isDragging ? "opacity-100" : "opacity-60 hover:opacity-100"
       }`}
     >
