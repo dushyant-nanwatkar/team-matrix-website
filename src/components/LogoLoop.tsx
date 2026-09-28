@@ -169,13 +169,13 @@ export default function LogoLoop({
               <div
                 className="absolute left-0 top-0 bottom-0 w-20 z-10 pointer-events-none"
                 style={{
-                  background: `linear-gradient(to right, ${fadeOutColor} 0%, transparent 100%)`,
+                  background: `linear-gradient(to right, var(--logoloop-fade, ${fadeOutColor}) 0%, transparent 100%)`,
                 }}
               />
               <div
                 className="absolute right-0 top-0 bottom-0 w-20 z-10 pointer-events-none"
                 style={{
-                  background: `linear-gradient(to left, ${fadeOutColor} 0%, transparent 100%)`,
+                  background: `linear-gradient(to left, var(--logoloop-fade, ${fadeOutColor}) 0%, transparent 100%)`,
                 }}
               />
             </>
@@ -184,13 +184,13 @@ export default function LogoLoop({
               <div
                 className="absolute top-0 left-0 right-0 h-16 z-10 pointer-events-none"
                 style={{
-                  background: `linear-gradient(to bottom, ${fadeOutColor} 0%, transparent 100%)`,
+                  background: `linear-gradient(to bottom, var(--logoloop-fade, ${fadeOutColor}) 0%, transparent 100%)`,
                 }}
               />
               <div
                 className="absolute bottom-0 left-0 right-0 h-16 z-10 pointer-events-none"
                 style={{
-                  background: `linear-gradient(to top, ${fadeOutColor} 0%, transparent 100%)`,
+                  background: `linear-gradient(to top, var(--logoloop-fade, ${fadeOutColor}) 0%, transparent 100%)`,
                 }}
               />
             </>

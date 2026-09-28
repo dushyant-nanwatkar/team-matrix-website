@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Orbitron, Chakra_Petch, Black_Ops_One } from "next/font/google";
 import "./globals.css";
+import MinimalScrollBar from "@/components/MinimalScrollBar";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -49,10 +51,14 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} ${chakraPetch.variable} ${blackOpsOne.variable} h-full antialiased dark`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-black text-white">{children}</body>
+      <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-300">
+        <ThemeProvider>
+          {children}
+          <MinimalScrollBar />
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
-
-

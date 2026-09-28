@@ -1,8 +1,44 @@
 @import "tailwindcss";
 
-:root {
+/* ── Theme Variables ─────────────────────────────────────────────────────── */
+
+/* Dark theme (default) */
+:root,
+.dark {
   --background: #050508;
   --foreground: #f8fafc;
+  --surface: #0d0d14;
+  --surface-hover: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.07);
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent: #ef4444;
+  --accent-surface: rgba(127, 29, 29, 0.5);
+  --nav-bg: rgba(13, 13, 20, 0.8);
+  --overlay-bg: rgba(0, 0, 0, 0.8);
+  --card-bg: rgba(255, 255, 255, 0.04);
+  --logoloop-fade: #050508;
+  color-scheme: dark;
+}
+
+/* Light theme */
+.light {
+  --background: #f7f6f3;
+  --foreground: #09090b;
+  --surface: #ffffff;
+  --surface-hover: rgba(0, 0, 0, 0.05);
+  --border: rgba(0, 0, 0, 0.09);
+  --text-primary: #09090b;
+  --text-secondary: #334155;
+  --text-muted: #475569;
+  --accent: #ef4444; /* Keep the exact same vibrant red as dark */
+  --accent-surface: rgba(239, 68, 68, 0.12);
+  --nav-bg: rgba(255, 255, 255, 0.88);
+  --overlay-bg: rgba(255, 255, 255, 0.9);
+  --card-bg: rgba(255, 255, 255, 0.95);
+  --logoloop-fade: #f7f6f3;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -15,9 +51,66 @@
   --font-black-ops: var(--font-black-ops);
 }
 
+/* ── View Transition (Circular Reveal) ───────────────────────────────────
+   The View Transitions API captures the old page state as a pseudo-element
+   snapshot (`::view-transition-old`) and reveals the new state through
+   `::view-transition-new`. We disable the default cross-fade and let the
+   JS in ThemeProvider animate `clip-path` on `::view-transition-new(root)`
+   for the circular reveal effect. */
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* The old snapshot stays fully visible underneath while the new one
+   clips in on top of it — this prevents the flash-to-white that
+   the default cross-dissolve would cause. */
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 9999;
+}
+
+/* ── Global Resets ───────────────────────────────────────────────────────── */
 
 html {
   scroll-snap-type: y proximity;
+  /* Hide clunky default browser scrollbars in favor of the custom minimal scrollbar */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+html::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+/* Minimal sleek scrollbars for any internal scrollable containers */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(239, 68, 68, 0.35);
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(239, 68, 68, 0.85);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(239, 68, 68, 0.35) transparent;
 }
 
 body {
@@ -25,6 +118,269 @@ body {
   color: var(--foreground);
   font-family: var(--font-orbitron), system-ui, sans-serif;
   overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ── Light Theme Overrides ───────────────────────────────────────────────
+   Targeted overrides to fix faint colors and keep the exact same vibrant
+   Team Matrix red (#ef4444) as dark mode. */
+
+/* Nav islands */
+.light .nav-island,
+.light header nav {
+  --tw-bg-opacity: 1;
+}
+
+/* In light mode, soften pure-black page backgrounds to the theme var */
+.light [class~="bg-black"],
+.light main.bg-black {
+  background-color: var(--background) !important;
+}
+
+/* "TEAM" in StrokeText: off-white in dark mode, dark foreground in light mode */
+.light .stroke-text__fill[fill="#F8FAFC"] {
+  fill: var(--foreground) !important;
+}
+
+/* Keep all red accents the SAME red colour as dark (#ef4444), NEVER faint pink */
+.light [class*="text-red-200"],
+.light [class*="text-red-300"],
+.light [class*="text-red-400"] {
+  color: #ef4444 !important;
+}
+
+/* Badges with red-950: subtle red tint with crisp red border & text in light mode */
+.light [class*="bg-red-950"] {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+/* Badges and pills with bg-black: crisp frosted white with red accent in light mode */
+.light [class*="bg-black/50"],
+.light [class*="bg-black/55"],
+.light [class*="bg-black/40"],
+.light [class*="bg-black/30"] {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+/* Red borders: make sure they stay visible and crisp with the same red */
+.light [class*="border-red-500/"] {
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+/* Invert dark-mode headings and body text to high-contrast dark foreground */
+.light [class~="text-white"],
+.light [class~="text-slate-50"],
+.light [class~="text-slate-100"] {
+  color: var(--foreground) !important;
+}
+
+/* White text on solid red buttons, badges, and media play buttons MUST stay white */
+.light [class*="bg-red"] [class~="text-white"],
+.light [class*="bg-[#8c1c2b]"] [class~="text-white"],
+.light [class*="bg-[#8c1c2b]"],
+.light [class*="bg-red"] svg,
+.light [class*="bg-[#8c1c2b]"] svg {
+  color: #ffffff !important;
+}
+
+/* Slate text adjustments: high-contrast and easy to read, never faint */
+.light [class*="text-slate-200"],
+.light [class*="text-slate-300"] {
+  color: var(--text-secondary) !important;
+}
+
+.light [class*="text-slate-400"],
+.light [class*="text-slate-500"],
+.light [class*="text-slate-600"] {
+  color: var(--text-muted) !important;
+}
+
+/* Semi-transparent white or faint slate text mapped to readable slate */
+.light [class*="text-white/"],
+.light [class*="text-slate-100/"] {
+  color: var(--text-secondary) !important;
+}
+
+/* Backdrop blur nav in light mode */
+.light header nav {
+  background-color: var(--nav-bg) !important;
+  border-color: rgba(0, 0, 0, 0.09) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+.light header nav a {
+  color: var(--text-secondary);
+}
+
+.light header nav a:hover {
+  color: #ef4444 !important;
+  background-color: rgba(239, 68, 68, 0.08) !important;
+}
+
+.light header nav a[href="/apply"] {
+  color: #ef4444 !important;
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+.light header nav a[href="/apply"]:hover {
+  background-color: #ef4444 !important;
+  color: #ffffff !important;
+  border-color: #ef4444 !important;
+}
+
+.light header [class*="bg-white/10"] {
+  background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Hamburger / mobile controls in light mode */
+.light header button:not(#theme-toggle) {
+  background-color: var(--nav-bg) !important;
+  border-color: rgba(0, 0, 0, 0.09) !important;
+  color: var(--foreground) !important;
+}
+
+/* Theme switch button in light mode — pure black icon */
+.light #theme-toggle {
+  color: #000000 !important;
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  border-color: transparent !important;
+}
+
+.light #theme-toggle svg {
+  color: #000000 !important;
+  stroke: #000000 !important;
+}
+
+.light #theme-toggle:hover {
+  background-color: rgba(0, 0, 0, 0.1) !important;
+  color: #000000 !important;
+}
+
+.light #theme-toggle:hover svg {
+  color: #000000 !important;
+  stroke: #000000 !important;
+}
+
+/* Mobile menu overlay in light mode */
+.light header + div nav,
+.light header ~ div nav {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15) !important;
+}
+
+.light header + div nav a,
+.light header ~ div nav a {
+  color: var(--foreground) !important;
+}
+
+.light header + div nav a[href="/apply"],
+.light header ~ div nav a[href="/apply"] {
+  color: #ef4444 !important;
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+/* Alumni and Member cards in light mode */
+.light .alumni-card > div,
+.light .member-card > div {
+  background-color: var(--surface) !important;
+  border-color: rgba(239, 68, 68, 0.25) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(239, 68, 68, 0.15) !important;
+}
+
+.light .alumni-card h3,
+.light .member-card h3 {
+  color: var(--foreground) !important;
+}
+
+.light .alumni-card [class*="bg-[#111117]"],
+.light .member-card [class*="bg-[#111117]"] {
+  background-color: #f1f5f9 !important;
+}
+
+.light .alumni-card [class*="from-[#0a0a0f]"],
+.light .member-card [class*="from-[#0a0a0f]"] {
+  background-image: linear-gradient(to top, var(--surface) 0%, transparent 100%) !important;
+}
+
+.light .member-card [class*="border-white/"] {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.light .member-card button {
+  color: var(--foreground) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+  background-color: rgba(239, 68, 68, 0.06) !important;
+}
+
+.light .member-card button:hover {
+  background-color: #ef4444 !important;
+  color: #ffffff !important;
+  border-color: #ef4444 !important;
+}
+
+/* ScrollLineSidebar in light mode */
+.light nav[aria-label="Page sections"] button span:last-child {
+  color: var(--text-secondary) !important;
+}
+
+.light nav[aria-label="Page sections"] button[aria-current="true"] span:last-child {
+  color: #ef4444 !important;
+}
+
+.light nav[aria-label="Page sections"] button[aria-current="true"] span:first-child {
+  background-color: #ef4444 !important;
+}
+
+/* Footer in light mode */
+.light footer {
+  background-color: var(--surface) !important;
+  border-top-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+.light footer h3,
+.light footer [class~="text-white"] {
+  color: var(--foreground) !important;
+}
+
+.light footer p,
+.light footer a {
+  color: var(--text-secondary) !important;
+}
+
+.light footer a:hover {
+  color: #ef4444 !important;
+}
+
+.light footer [class*="bg-red-950"] {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+  color: #ef4444 !important;
+}
+
+.light footer [class*="bg-white/5"] {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: var(--text-secondary) !important;
+}
+
+.light footer [class*="bg-white/5"]:hover {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+  color: #ef4444 !important;
+}
+
+/* Sponsors section marquee edge fade in light mode */
+.light #sponsors [style*="linear-gradient(to right"] {
+  background: linear-gradient(to right, var(--background) 0%, transparent 100%) !important;
+}
+
+.light #sponsors [style*="linear-gradient(to left"] {
+  background: linear-gradient(to left, var(--background) 0%, transparent 100%) !important;
 }
 
 @keyframes fadeInUp {
@@ -117,5 +473,30 @@ body {
     animation: none;
     background-position: -50% center;
   }
+}
+
+/* Light mode overrides for animations to keep rich red and avoid faint text */
+.light .thought-line-shimmer {
+  background-image: linear-gradient(
+    100deg,
+    #ef4444 30%,
+    #dc2626 50%,
+    #ef4444 70%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.light .shiny-text {
+  background-image: linear-gradient(
+    120deg,
+    #ef4444 0%,
+    #dc2626 35%,
+    #b91c1c 50%,
+    #dc2626 65%,
+    #ef4444 100%
+  );
+  filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.25));
 }
 

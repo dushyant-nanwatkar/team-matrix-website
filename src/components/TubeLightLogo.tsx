@@ -13,6 +13,7 @@ import Footer from "./Footer";
 import AchievementsShowcase from "./AchievementsShowcase";
 import ScrollProgressBar from "./ScrollProgressBar";
 import ScrollLineSidebar from "./ScrollLineSidebar";
+import ThemeToggle from "./ThemeToggle";
 import Reveal from "./Reveal";
 import { ALUMNI } from "@/data/alumni";
 import achievementCaptionsData from "../../public/achievements/captions.json";
@@ -291,14 +292,34 @@ export default function TubeLightLogo() {
   }, []);
 
   // Synchronize: after intro + assets + 3s intentional delay → set readyForScroll
-  // Then the FIRST scroll/wheel event triggers isMovedToNav (task 5 + 5.1)
+  // Then the FIRST scroll/wheel/key event triggers isMovedToNav (task 5 + 5.1)
   useEffect(() => {
     if (introFinished && isAssetsLoaded) {
       const delayTimer = setTimeout(() => {
         setReadyForScroll(true);
       }, 3000); // Intentional 3s loading screen delay
 
-      return () => clearTimeout(delayTimer);
+      // Allow user to skip remaining wait immediately by pressing ArrowDown/scroll
+      const earlyTrigger = (e?: Event) => {
+        if (e instanceof KeyboardEvent && !["ArrowDown", "ArrowUp", "PageDown", "PageUp", " ", "Spacebar"].includes(e.key)) {
+          return;
+        }
+        clearTimeout(delayTimer);
+        setReadyForScroll(true);
+      };
+
+      window.addEventListener("wheel", earlyTrigger, { once: true, passive: true });
+      window.addEventListener("touchmove", earlyTrigger, { once: true, passive: true });
+      window.addEventListener("keydown", earlyTrigger, { once: true, passive: true });
+      window.addEventListener("team-matrix-scroll-trigger", earlyTrigger, { once: true });
+
+      return () => {
+        clearTimeout(delayTimer);
+        window.removeEventListener("wheel", earlyTrigger);
+        window.removeEventListener("touchmove", earlyTrigger);
+        window.removeEventListener("keydown", earlyTrigger);
+        window.removeEventListener("team-matrix-scroll-trigger", earlyTrigger);
+      };
     }
   }, [introFinished, isAssetsLoaded]);
 
@@ -313,14 +334,24 @@ export default function TubeLightLogo() {
       setIsMovedToNav(true);
     };
 
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", " ", "Spacebar"].includes(e.key)) {
+        triggerNav();
+      }
+    };
+
     window.addEventListener("scroll", triggerNav, { once: true, passive: true });
     window.addEventListener("wheel", triggerNav, { once: true, passive: true });
     window.addEventListener("touchmove", triggerNav, { once: true, passive: true });
+    window.addEventListener("keydown", handleKeyDown, { once: true, passive: true });
+    window.addEventListener("team-matrix-scroll-trigger", triggerNav, { once: true });
 
     return () => {
       window.removeEventListener("scroll", triggerNav);
       window.removeEventListener("wheel", triggerNav);
       window.removeEventListener("touchmove", triggerNav);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("team-matrix-scroll-trigger", triggerNav);
     };
   }, [readyForScroll, isMovedToNav]);
 
@@ -791,6 +822,8 @@ export default function TubeLightLogo() {
             </Link>
           ))}
           <div className="w-px h-4 bg-white/10 mx-1" />
+          <ThemeToggle />
+          <div className="w-px h-4 bg-white/10 mx-1" />
           <Link
             href="/apply"
             className="px-4 py-1.5 rounded-full text-sm font-sans font-semibold text-red-300 bg-red-950/50 border border-red-500/30 transition-all duration-200 hover:bg-red-900/60 hover:text-red-200 active:scale-95 whitespace-nowrap"
@@ -854,6 +887,11 @@ export default function TubeLightLogo() {
               {label}
             </Link>
           ))}
+          {/* Theme Toggle — mobile */}
+          <div className="flex items-center justify-between px-4 py-3">
+            <span className="font-sans text-base font-medium text-slate-300/85">Theme</span>
+            <ThemeToggle />
+          </div>
           <Link
             href="/apply"
             onClick={() => setMenuOpen(false)}

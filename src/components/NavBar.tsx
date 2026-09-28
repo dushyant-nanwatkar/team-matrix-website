@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import GradualBlur from "./GradualBlur";
+import ThemeToggle from "./ThemeToggle";
 
 // Runs before paint on the client (no SSR flash of the wrong value), falls
 // back to a plain effect on the server where layout effects are a no-op —
@@ -126,7 +127,9 @@ export default function NavBar() {
               {label}
             </Link>
           ))}
-          <div className="w-px h-4 bg-white/10 mx-1" />
+          <div className="w-px h-4 bg-white/10 dark:bg-white/10 mx-1" />
+          <ThemeToggle />
+          <div className="w-px h-4 bg-white/10 dark:bg-white/10 mx-1" />
           <Link
             href="/apply"
             className={`px-4 py-1.5 rounded-full text-sm font-sans font-semibold text-red-300 bg-red-950/50 border border-red-500/30 transition-all duration-200 hover:bg-red-900/60 hover:text-red-200 active:scale-95 whitespace-nowrap ${
@@ -179,6 +182,11 @@ export default function NavBar() {
               {label}
             </Link>
           ))}
+          {/* Theme Toggle — mobile */}
+          <div className="flex items-center justify-between px-4 py-3">
+            <span className="font-sans text-base font-medium text-slate-300/85 dark:text-slate-300/85">Theme</span>
+            <ThemeToggle />
+          </div>
           <Link
             href="/apply"
             onClick={() => setMenuOpen(false)}
