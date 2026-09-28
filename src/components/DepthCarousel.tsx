@@ -58,11 +58,13 @@ interface CarouselConfig {
 
 interface DragState {
   x: number;
+  y: number;
   startPos: number;
   lastX: number;
   lastT: number;
   v: number;
   moved: boolean;
+  isScrolling: boolean;
   id: number;
 }
 
@@ -167,22 +169,30 @@ export default function DepthCarousel({
       const az = Math.abs(d);
       const shown = az <= cfg.visibleCards + 0.5;
 
+      if (!shown) {
+        el.style.display = "none";
+        continue;
+      }
+      el.style.display = "block";
+
       const tz = -cfg.depth * d;
       const tx = dir * cfg.spread * d;
       const ry = dir * cfg.tilt * clamp(d, 0, 1);
 
-      let opacity = d < 0 ? Math.max(0, 1 + d) : 1;
-      if (!shown) opacity = 0;
-
-      const brightness = Math.max(0.15, 1 - back * cfg.falloff);
+      const opacity = d < 0 ? Math.max(0, 1 + d) : 1;
+      const brightness = Math.max(0.18, 1 - back * cfg.falloff);
       const blurPx = cfg.blur > 0 ? Math.min(cfg.blur, (back / Math.max(1, cfg.visibleCards)) * cfg.blur) : 0;
       const zi = Math.round(2000 - d * 20);
 
       el.style.transform = `translate(-50%, -50%) scale(${sc}) translateX(${tx.toFixed(2)}px) translateZ(${tz.toFixed(2)}px) rotateY(${ry.toFixed(3)}deg)`;
       el.style.opacity = opacity.toFixed(3);
-      el.style.filter = `brightness(${brightness.toFixed(3)}) blur(${blurPx.toFixed(2)}px)`;
+      if (cfg.blur > 0) {
+        el.style.filter = `brightness(${brightness.toFixed(3)}) blur(${blurPx.toFixed(2)}px)`;
+      } else {
+        el.style.filter = `brightness(${brightness.toFixed(3)})`;
+      }
       el.style.zIndex = String(zi);
-      el.style.pointerEvents = shown && opacity > 0.05 ? "auto" : "none";
+      el.style.pointerEvents = opacity > 0.05 ? "auto" : "none";
 
       const ov = overlayRefs.current[i];
       if (ov) ov.style.opacity = clamp(back * cfg.falloff * 1.25, 0, 0.86).toFixed(3);
@@ -318,19 +328,18 @@ export default function DepthCarousel({
     const cfg = cfgRef.current;
     if (cfg.count < 2) return;
     tweenRef.current?.kill();
-    // Same normalization as setFocus (see the comment there) — a drag
-    // starting right after an interrupted tween should still baseline off a
-    // small, precise position, not whatever it drifted to.
     if (cfg.loop) {
       posRef.current = ((posRef.current % cfg.count) + cfg.count) % cfg.count;
     }
     dragRef.current = {
       x: e.clientX,
+      y: e.clientY,
       startPos: posRef.current,
       lastX: e.clientX,
       lastT: performance.now(),
       v: 0,
       moved: false,
+      isScrolling: false,
       id: e.pointerId,
     };
   }, []);
@@ -339,14 +348,30 @@ export default function DepthCarousel({
     (e: ReactPointerEvent<HTMLDivElement>) => {
       const drag = dragRef.current;
       if (!drag) return;
+      if (drag.isScrolling) return;
+
+      const dx = e.clientX - drag.x;
+      const dy = e.clientY - drag.y;
+
+      // Allow natural vertical scroll on mobile if movement is predominantly vertical
+      if (!drag.moved) {
+        if (Math.abs(dy) > 7 && Math.abs(dy) > Math.abs(dx)) {
+          drag.isScrolling = true;
+          return;
+        }
+        if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+          drag.moved = true;
+          try {
+            rootRef.current?.setPointerCapture(drag.id);
+          } catch {
+            // Ignore pointer capture errors on mobile
+          }
+        }
+      }
+
+      if (!drag.moved) return;
       const cfg = cfgRef.current;
       const stepPx = Math.max(cfg.cardWidth * 0.55 * scaleRef.current, 40);
-      const dx = e.clientX - drag.x;
-      if (!drag.moved && Math.abs(dx) > 4) {
-        drag.moved = true;
-        rootRef.current?.setPointerCapture(drag.id);
-      }
-      if (!drag.moved) return;
       const now = performance.now();
       const dt = Math.max(now - drag.lastT, 1);
       drag.v = (e.clientX - drag.lastX) / dt;
@@ -361,6 +386,13 @@ export default function DepthCarousel({
   const onPointerEnd = useCallback(() => {
     const drag = dragRef.current;
     if (!drag) return;
+    if (drag.moved && drag.id != null) {
+      try {
+        rootRef.current?.releasePointerCapture(drag.id);
+      } catch {
+        // Ignore
+      }
+    }
     dragRef.current = null;
     if (!drag.moved) return;
     const cfg = cfgRef.current;
@@ -396,12 +428,14 @@ export default function DepthCarousel({
     const root = rootRef.current;
     let hovered = false;
     let focused = false;
+    let inView = true;
     const stop = () => {
       if (autoTimerRef.current) clearInterval(autoTimerRef.current);
       autoTimerRef.current = null;
     };
     const start = () => {
       stop();
+      if (!inView) return;
       autoTimerRef.current = setInterval(
         () => {
           // `hovered`/`focused` only ever get set by mouse/keyboard events —
@@ -414,7 +448,7 @@ export default function DepthCarousel({
           // glitches/jitters the carousel the longer you drag through it
           // (more time = higher chance the fixed autoplay interval lands
           // mid-gesture).
-          if (!hovered && !focused && !dragRef.current) navigateBy(1);
+          if (!hovered && !focused && !dragRef.current && inView) navigateBy(1);
         },
         Math.max(cfgRef.current.autoplayDelay, 600)
       );
@@ -431,6 +465,24 @@ export default function DepthCarousel({
     const onFocusOut = () => {
       focused = false;
     };
+
+    let observer: IntersectionObserver | null = null;
+    if (typeof IntersectionObserver !== "undefined" && root) {
+      observer = new IntersectionObserver(
+        (entries) => {
+          const entry = entries[0];
+          inView = entry ? entry.isIntersecting : true;
+          if (inView) {
+            start();
+          } else {
+            stop();
+          }
+        },
+        { threshold: 0.1 }
+      );
+      observer.observe(root);
+    }
+
     root?.addEventListener("mouseenter", onEnter);
     root?.addEventListener("mouseleave", onLeave);
     root?.addEventListener("focusin", onFocusIn);
@@ -438,6 +490,7 @@ export default function DepthCarousel({
     start();
     return () => {
       stop();
+      observer?.disconnect();
       root?.removeEventListener("mouseenter", onEnter);
       root?.removeEventListener("mouseleave", onLeave);
       root?.removeEventListener("focusin", onFocusIn);
@@ -461,7 +514,7 @@ export default function DepthCarousel({
   return (
     <div
       ref={rootRef}
-      className={`relative flex h-full min-h-[320px] w-full cursor-grab touch-pan-y select-none items-center justify-center outline-none [perspective-origin:50%_50%] active:cursor-grabbing focus-visible:rounded-xl focus-visible:outline-2 focus-visible:outline-white/50 focus-visible:[outline-offset:4px] ${className}`.trim()}
+      className={`relative flex h-full min-h-[220px] sm:min-h-[320px] w-full cursor-grab touch-pan-y select-none items-center justify-center outline-none [perspective-origin:50%_50%] active:cursor-grabbing focus-visible:rounded-xl focus-visible:outline-2 focus-visible:outline-white/50 focus-visible:[outline-offset:4px] ${className}`.trim()}
       style={{ perspective: `${perspective}px` }}
       role="group"
       aria-roledescription="carousel"
@@ -477,7 +530,7 @@ export default function DepthCarousel({
         {data.map((item, i) => (
           <div
             key={i}
-            className="absolute left-1/2 top-1/2 cursor-pointer overflow-hidden bg-[#0b0d12] shadow-[0_30px_60px_-20px_rgba(0,0,0,0.65),0_8px_20px_-10px_rgba(0,0,0,0.5)] [transform:translate(-50%,-50%)] [transform-origin:center] [will-change:transform,opacity,filter]"
+            className="absolute left-1/2 top-1/2 cursor-pointer overflow-hidden bg-[#0b0d12] shadow-[0_30px_60px_-20px_rgba(0,0,0,0.65),0_8px_20px_-10px_rgba(0,0,0,0.5)] [transform:translate(-50%,-50%)] [transform-origin:center]"
             ref={(el) => {
               cardRefs.current[i] = el;
             }}
@@ -496,11 +549,11 @@ export default function DepthCarousel({
               draggable={false}
             />
             <span
-              className="pointer-events-none absolute inset-0 opacity-0 mix-blend-multiply"
+              className="pointer-events-none absolute inset-0 opacity-0"
               ref={(el) => {
                 overlayRefs.current[i] = el;
               }}
-              style={{ background: tint }}
+              style={{ background: "#000000" }}
             />
           </div>
         ))}
@@ -510,7 +563,7 @@ export default function DepthCarousel({
         <>
           <button
             type="button"
-            className="absolute left-4 top-1/2 z-[3000] grid h-[42px] w-[42px] -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-[rgba(18,20,26,0.55)] text-white backdrop-blur-md transition-[background,border-color,transform,box-shadow] duration-200 hover:border-red-400/50 hover:bg-[rgba(28,31,40,0.85)] hover:scale-110 active:scale-95"
+            className="absolute left-4 top-1/2 z-[3000] hidden sm:grid h-[42px] w-[42px] -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-[rgba(18,20,26,0.55)] text-white backdrop-blur-md transition-[background,border-color,transform,box-shadow] duration-200 hover:border-red-400/50 hover:bg-[rgba(28,31,40,0.85)] hover:scale-110 active:scale-95"
             aria-label="Previous slide"
             onClick={() => navigateBy(-1)}
           >
@@ -527,7 +580,7 @@ export default function DepthCarousel({
           </button>
           <button
             type="button"
-            className="absolute right-4 top-1/2 z-[3000] grid h-[42px] w-[42px] -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-[rgba(18,20,26,0.55)] text-white backdrop-blur-md transition-[background,border-color,transform,box-shadow] duration-200 hover:border-red-400/50 hover:bg-[rgba(28,31,40,0.85)] hover:scale-110 active:scale-95"
+            className="absolute right-4 top-1/2 z-[3000] hidden sm:grid h-[42px] w-[42px] -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-[rgba(18,20,26,0.55)] text-white backdrop-blur-md transition-[background,border-color,transform,box-shadow] duration-200 hover:border-red-400/50 hover:bg-[rgba(28,31,40,0.85)] hover:scale-110 active:scale-95"
             aria-label="Next slide"
             onClick={() => navigateBy(1)}
           >
