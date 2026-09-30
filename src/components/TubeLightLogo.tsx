@@ -15,6 +15,7 @@ import ScrollProgressBar from "./ScrollProgressBar";
 import ScrollLineSidebar from "./ScrollLineSidebar";
 import ThemeToggle from "./ThemeToggle";
 import Reveal from "./Reveal";
+import ApplyPopup from "./ApplyPopup";
 import { ALUMNI } from "@/data/alumni";
 import achievementCaptionsData from "../../public/achievements/captions.json";
 
@@ -85,6 +86,15 @@ export default function TubeLightLogo() {
   const [achievementsProgress, setAchievementsProgress] = useState(0);
   const [sponsorsProgress, setSponsorsProgress] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // One-time Apply Now popup state
+  const [isApplyPopupOpen, setIsApplyPopupOpen] = useState(false);
+  const applyPopupTriggeredRef = useRef(false);
+
+  const handleCloseApplyPopup = useCallback(() => {
+    setIsApplyPopupOpen(false);
+  }, []);
+
   // Reading window.innerWidth/innerHeight during render (needed for the logo
   // scroll-scrub below) would differ between the server's render (no window)
   // and the client's — a hydration mismatch. `mounted` starts false on both,
@@ -354,6 +364,34 @@ export default function TubeLightLogo() {
       window.removeEventListener("team-matrix-scroll-trigger", triggerNav);
     };
   }, [readyForScroll, isMovedToNav]);
+
+  // One-time Apply Now popup trigger: pops up as soon as tubelight logo reaches the navigation bar
+  useEffect(() => {
+    if (applyPopupTriggeredRef.current) return;
+
+    if (maxLogoNavT >= 0.92) {
+      applyPopupTriggeredRef.current = true;
+      const timer = setTimeout(() => {
+        setIsApplyPopupOpen(true);
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [maxLogoNavT]);
+
+  // Fallback trigger if logo navigation was initiated via key/touch and settled
+  useEffect(() => {
+    if (applyPopupTriggeredRef.current) return;
+
+    if (isMovedToNav) {
+      const timer = setTimeout(() => {
+        if (!applyPopupTriggeredRef.current) {
+          applyPopupTriggeredRef.current = true;
+          setIsApplyPopupOpen(true);
+        }
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isMovedToNav]);
 
   // Tubelight Intro GSAP Sequence — skipped when `skipIntro` is set (see
   // above), jumping straight to the flicker's fully-lit end state instead.
@@ -1327,6 +1365,9 @@ export default function TubeLightLogo() {
         {/* ── FOOTER ── */}
         <Footer />
       </div>
+
+      {/* ── ONE-TIME APPLY NOW POPUP ── */}
+      <ApplyPopup isOpen={isApplyPopupOpen} onClose={handleCloseApplyPopup} />
     </div>
   );
 }

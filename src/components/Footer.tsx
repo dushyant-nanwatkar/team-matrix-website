@@ -15,14 +15,44 @@ function Footer() {
 
           {/* LEFT COLUMN: Logo & Address */}
           <div className="md:col-span-5 flex flex-col sm:flex-row items-start gap-4">
-            <div className="relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0">
-              <Image
-                src="/tempfiles/matrix-logo (1).webp"
-                alt="Team Matrix Logo"
-                fill
-                sizes="(max-width: 640px) 64px, 80px"
-                className="object-contain"
-              />
+            {/* Logos Lockup: Team Matrix + K.K. Wagh */}
+            <div className="flex items-center gap-3.5 flex-shrink-0">
+              <div className="relative w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0">
+                <Image
+                  src="/tempfiles/matrix-logo (1).webp"
+                  alt="Team Matrix Logo"
+                  fill
+                  sizes="(max-width: 640px) 56px, 64px"
+                  className="object-contain"
+                />
+              </div>
+
+              <div className="w-[1.5px] h-10 sm:h-12 bg-red-500/30" />
+
+              <a
+                href="https://engg.kkwagh.edu.in/"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="K.K. Wagh Institute of Engineering Education & Research"
+                className="relative w-24 h-14 sm:w-28 sm:h-16 flex-shrink-0 block hover:opacity-85 transition-opacity"
+              >
+                {/* Dark mode: White logo */}
+                <Image
+                  src="/kkw/kkw-logo-white.webp"
+                  alt="K.K. Wagh Logo"
+                  fill
+                  sizes="(max-width: 640px) 96px, 112px"
+                  className="object-contain kkw-logo-dark"
+                />
+                {/* Light mode: Original colored logo */}
+                <Image
+                  src="/kkw/kkw-logo-original.webp"
+                  alt="K.K. Wagh Logo"
+                  fill
+                  sizes="(max-width: 640px) 96px, 112px"
+                  className="object-contain kkw-logo-light"
+                />
+              </a>
             </div>
 
             <div className="flex flex-col space-y-1.5">

@@ -387,6 +387,36 @@ body {
   color: #ef4444 !important;
 }
 
+/* KK Wagh Logo theme responsiveness in footers */
+.kkw-logo-dark {
+  display: block !important;
+}
+.kkw-logo-light {
+  display: none !important;
+}
+.light .kkw-logo-dark {
+  display: none !important;
+}
+.light .kkw-logo-light {
+  display: block !important;
+}
+
+/* ApplyPopup modal styles: preserve crisp white/slate text in both light and dark modes */
+.apply-popup-card h2,
+.light .apply-popup-card h2 {
+  color: #ffffff !important;
+}
+
+.apply-popup-card p,
+.light .apply-popup-card p {
+  color: #cbd5e1 !important;
+}
+
+.apply-popup-card span.text-red-400,
+.light .apply-popup-card span.text-red-400 {
+  color: #f87171 !important;
+}
+
 /* Sponsors section marquee edge fade in light mode */
 .light #sponsors [style*="linear-gradient(to right"] {
   background: linear-gradient(to right, var(--background) 0%, transparent 100%) !important;
