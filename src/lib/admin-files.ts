@@ -18,13 +18,26 @@ const ALLOWED_IMAGE_EXTS: Record<string, string> = {
   "image/webp": ".webp",
   "image/png": ".png",
   "image/jpeg": ".jpg",
+  "image/jpg": ".jpg",
+  "image/avif": ".avif",
 };
 
 // Writes an uploaded image into /public/<subdir>/ under a random filename
 // (sidesteps collisions/path traversal from a user-supplied name entirely)
 // and returns the public URL path to store alongside the record.
 export async function saveUploadedImage(file: File, subdir: string): Promise<string> {
-  const ext = ALLOWED_IMAGE_EXTS[file.type];
+  const fallbackExt = file.name ? path.extname(file.name).toLowerCase() : "";
+  const ext =
+    ALLOWED_IMAGE_EXTS[file.type] ||
+    (fallbackExt === ".jpg" || fallbackExt === ".jpeg"
+      ? ".jpg"
+      : fallbackExt === ".png"
+      ? ".png"
+      : fallbackExt === ".webp"
+      ? ".webp"
+      : fallbackExt === ".avif"
+      ? ".avif"
+      : null);
   if (!ext) {
     throw new Error("Unsupported image type — use WEBP, PNG, or JPEG");
   }
@@ -65,4 +78,55 @@ export function readJsonFile<T>(filePath: string, fallback: T): T {
 export function writeJsonFile(filePath: string, data: unknown) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + "\n", "utf-8");
+}
+
+const ALLOWED_MODEL_EXTS = new Set([".obj", ".mtl", ".glb", ".gltf"]);
+
+export async function saveUploadedModelFile(file: File, subdir = "objects"): Promise<string> {
+  const originalName = file.name || "model.obj";
+  const ext = path.extname(originalName).toLowerCase();
+  if (!ALLOWED_MODEL_EXTS.has(ext)) {
+    throw new Error(`Unsupported model file type "${ext}" — use .obj, .mtl, .glb, or .gltf`);
+  }
+
+  const destDir = path.join(process.cwd(), "public", subdir);
+  fs.mkdirSync(destDir, { recursive: true });
+
+  // Sanitize the filename to prevent directory traversal while keeping it recognizable
+  const base = path.basename(originalName, ext).replace(/[^a-zA-Z0-9_\-\s]/g, "").trim() || "model";
+  let targetFilename = `${base}${ext}`;
+  let targetPath = path.join(destDir, targetFilename);
+
+  // If a file with the same name exists, append a short random hash to prevent accidental overwrite
+  if (fs.existsSync(targetPath)) {
+    const hash = crypto.randomBytes(4).toString("hex");
+    targetFilename = `${base}_${hash}${ext}`;
+    targetPath = path.join(destDir, targetFilename);
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  fs.writeFileSync(targetPath, buffer);
+
+  return `/${subdir}/${targetFilename}`;
+}
+
+export function listPublicObjectFiles(): { name: string; path: string; size: number; ext: string }[] {
+  const objectsDir = path.join(process.cwd(), "public", "objects");
+  if (!fs.existsSync(objectsDir)) return [];
+
+  const files = fs.readdirSync(objectsDir);
+  return files
+    .filter((f) => !f.startsWith("."))
+    .map((name) => {
+      const fullPath = path.join(objectsDir, name);
+      const stat = fs.statSync(fullPath);
+      const ext = path.extname(name).toLowerCase();
+      return {
+        name,
+        path: `/objects/${name}`,
+        size: stat.size,
+        ext,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 }

@@ -1,0 +1,42 @@
+[
+  {
+    "id": "rover",
+    "title": "Rover",
+    "category": "RoboCup Soccer",
+    "description": "Rover",
+    "year": "2026",
+    "modelUrl": "/objects/rover.glb",
+    "featured": true,
+    "createdAt": "2026-09-30T14:03:32.979Z"
+  },
+  {
+    "id": "drone",
+    "title": "Drone",
+    "category": "RoboCup Soccer",
+    "description": "Drone",
+    "year": "2026",
+    "modelUrl": "/objects/drone.glb",
+    "featured": false,
+    "createdAt": "2026-09-30T13:58:18.686Z"
+  },
+  {
+    "id": "sumo",
+    "title": "Sumo",
+    "category": "RoboCup Soccer",
+    "description": "Sumo Bot",
+    "year": "2026",
+    "modelUrl": "/objects/sumo.glb",
+    "featured": true,
+    "createdAt": "2026-09-30T13:55:48.858Z"
+  },
+  {
+    "id": "soccer",
+    "title": "Soccer",
+    "category": "RoboCup Soccer",
+    "description": "Soccer Bot",
+    "year": "2026",
+    "modelUrl": "/objects/soccer.glb",
+    "featured": true,
+    "createdAt": "2026-09-30T13:55:23.248Z"
+  }
+]

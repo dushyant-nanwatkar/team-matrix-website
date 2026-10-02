@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Large uncompressed 3D models (use .glb instead)
+/public/objects/*.obj

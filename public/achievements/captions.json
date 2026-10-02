@@ -1,117 +1,144 @@
 [
   {
+    "id": "ach-1",
     "file": "achievements-summary-banner.png",
     "caption": "Our Achievements — AIR 1 National Robotex 2023, TOP 10 IRoC-U 2024, TOP 16 IRoC-U 2025, TOP 20 IRoC-U 2026, AIR 2 National Robotex 2024.",
     "note": "Full title-slide infographic, not an individual photo."
   },
   {
+    "id": "ach-2",
     "file": "2026-national-space-day-drone-test.jpg",
     "caption": "Testing the quadcopter rig ahead of a demo — Highlights 2026."
   },
   {
+    "id": "ach-3",
     "file": "2026-national-space-day-group.jpg",
     "caption": "Team Matrix at the National Space Day celebrations, Bharat Mandapam, New Delhi — Highlights 2026."
   },
   {
+    "id": "ach-4",
     "file": "2026-highlights-team-group.jpg",
     "caption": "Team Matrix — Highlights 2026."
   },
   {
+    "id": "ach-5",
     "file": "2025-drone-hover-test.jpg",
     "caption": "Drone hover test — Highlights 2025."
   },
   {
+    "id": "ach-6",
     "file": "2025-bharat-mandapam-visit.jpg",
     "caption": "Team Matrix at Bharat Mandapam, New Delhi — Highlights 2025."
   },
   {
+    "id": "ach-7",
     "file": "2025-iroc-u-group-ursc.jpg",
     "caption": "IRoC-U 2025 — ISRO Robotics Challenge, URSC Bengaluru."
   },
   {
+    "id": "ach-8",
     "file": "2024-national-space-day-venue.jpg",
     "caption": "National Space Day venue — Highlights 2024."
   },
   {
+    "id": "ach-9",
     "file": "2024-robotex-sumo-2nd-3rd-trophies.jpg",
     "caption": "2nd & 3rd Position, Sumo Robo (A) — Robotex 2024."
   },
   {
+    "id": "ach-10",
     "file": "2024-iroc-u-group-ursc.jpg",
     "caption": "IRoC-U 2024 — ISRO Robotics Challenge, URSC Bengaluru."
   },
   {
+    "id": "ach-11",
     "file": "sangamneer-robosoccer-robowars-roborace.jpg",
     "caption": "Sangamneer — 1st in RoboSoccer, 1st & 2nd in RoboWars, 2nd in RoboRace."
   },
   {
+    "id": "ach-12",
     "file": "nashik-roborace-1st-2nd.jpg",
     "caption": "Nashik — 1st & 2nd Place, RoboRace."
   },
   {
+    "id": "ach-13",
     "file": "aurangabad-roborace-robosumo.jpg",
     "caption": "Aurangabad — 1st in RoboRace, 2nd in RoboSumo."
   },
   {
+    "id": "ach-14",
     "file": "goa-robosumo-1st-2nd.jpg",
     "caption": "Goa — 1st & 2nd Place, RoboSumo."
   },
   {
+    "id": "ach-15",
     "file": "robotex-air3-mazesolver-3rd.jpg",
     "caption": "AIR 3, Maze Solver — 3rd Position, Robotex.",
     "note": "Caption text confirmed from the prize cheque visible in the photo."
   },
   {
+    "id": "ach-16",
     "file": "robotex-air2-linefollower-2nd.jpg",
     "caption": "AIR 2, Line Follower — 2nd Position, Robotex.",
     "note": "Caption text confirmed from the prize cheque visible in the photo."
   },
   {
+    "id": "ach-17",
     "file": "robotex-air1-sumorobo-1st-2nd.jpg",
     "caption": "AIR 1, Autonomous Sumo Robo — 1st & 2nd Position, Robotex.",
     "note": "The page also has a stray \"5kg\" weight-class label nearby, but it wasn't reliably positioned next to this exact photo in the source deck (the page's photo/label layout doesn't consistently pair adjacent items — e.g. a Line Follower photo sits directly under a \"Sumo 3kg\" label on the same page). Verify the 5kg attribution before publishing."
   },
   {
+    "id": "ach-18",
     "file": "robotex-sumorobo-2nd.jpg",
     "caption": "Autonomous Sumo Robo — 2nd Position, Robotex.",
     "note": "Same caveat as robotex-air1-sumorobo-1st-2nd.jpg — a nearby \"3kg\" label on the source page isn't reliably matched to this specific photo. Verify before publishing."
   },
   {
+    "id": "ach-19",
     "file": "robotex2024-air2-sumo3kg-3rd.jpg",
     "caption": "AIR 2, Autonomous Sumo 3kg — 3rd Position, Robotex 2024.",
     "note": "Caption text confirmed from the prize cheque visible in the photo."
   },
   {
+    "id": "ach-20",
     "file": "robotex-nationals-2nd-3rd-trophies.jpg",
     "caption": "2nd & 3rd Rank, Robo Sumo — Robotex India National Championship 2024.",
     "note": "Cropped from the rendered page rather than extracted directly — the embedded image object had a color-profile bug in raw extraction (came out blue/gold duotone instead of true gold)."
   },
   {
+    "id": "ach-21",
     "file": "robotex-air3-sumo2kg.jpg",
     "caption": "AIR 3, Autonomous Sumo 2kg — Robotex."
   },
   {
+    "id": "ach-22",
     "file": "team-matrix-at-ursc-bengaluru.jpg",
     "caption": "Team Matrix at URSC, Bengaluru."
   },
   {
+    "id": "ach-23",
     "file": "representing-team-bharat-mandapam-delhi.jpg",
     "caption": "Representing the team at Bharat Mandapam, Delhi."
   },
   {
+    "id": "ach-24",
     "file": "moment-with-dr-s-somanath.jpg",
     "caption": "A moment with Dr. S.S. Somnath.",
     "note": "Name spelled exactly as captioned in the source PDF."
   },
   {
+    "id": "ach-25",
     "file": "field-round-kkwieer-live-demo.jpg",
     "caption": "Field Round — ISRO Senior Scientist Dr. Ravikumar and Dr. Murli at K.K.W.I.E.E.R for a live video demonstration."
   },
   {
+    "id": "ach-26",
     "file": "final-round-ursc.jpg",
     "caption": "Final Round."
   },
   {
+    "id": "ach-27",
     "file": "representing-rover-to-isro-scientists.jpg",
     "caption": "Representing the rover to prominent scientists of ISRO."
   }

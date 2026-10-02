@@ -6,12 +6,14 @@ import Reveal from "./Reveal";
 import captionsData from "../../public/achievements/captions.json";
 
 interface AchievementCaption {
+  id?: string;
   file: string;
   caption: string;
   note?: string;
+  image?: string;
 }
 
-const captions = captionsData as AchievementCaption[];
+const fallbackCaptions = captionsData as AchievementCaption[];
 
 // Runs before paint on the client (no SSR flash of the wrong size), falls
 // back to a plain effect on the server where layout effects are a no-op.
@@ -74,15 +76,37 @@ interface AchievementsShowcaseProps {
 // long as variant hasn't changed; only the wrapper's inline opacity style
 // changes each frame while the pin is active.
 function AchievementsShowcase({ variant = "pinned" }: AchievementsShowcaseProps) {
+  const [achievements, setAchievements] = useState<AchievementCaption[]>(fallbackCaptions);
   const [activeIndex, setActiveIndex] = useState(0);
-  const active = captions[activeIndex];
   const isDesktop = useIsDesktop();
   const carouselProps = isDesktop ? DESKTOP_CAROUSEL_PROPS : MOBILE_CAROUSEL_PROPS;
   const isFlow = variant === "flow";
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/achievements")
+      .then((r) => r.json())
+      .then((data: AchievementCaption[]) => {
+        if (!cancelled && Array.isArray(data) && data.length > 0) {
+          setAchievements(data);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const safeIndex = Math.min(activeIndex, Math.max(0, achievements.length - 1));
+  const active = achievements[safeIndex];
+
   const items: DepthCarouselItem[] = useMemo(
-    () => captions.map((c) => ({ image: `/achievements/${c.file}`, alt: c.caption })),
-    []
+    () =>
+      achievements.map((c) => ({
+        image: c.image || (c.file.startsWith("/") ? c.file : `/achievements/${c.file}`),
+        alt: c.caption,
+      })),
+    [achievements]
   );
 
   return (

@@ -258,14 +258,14 @@ export default function TubeLightLogo() {
 
     // 3) Members, sponsors, alumni, and achievements photos. Members/sponsors
     // are fs/JSON-backed and only knowable via their API routes; alumni and
-    // achievements are static data already bundled client-side.
-    const achievementUrls = achievementCaptions.map((c) => `/achievements/${c.file}`);
+    const fallbackAchievementUrls = achievementCaptions.map((c) => `/achievements/${c.file}`);
     const alumniUrls = ALUMNI.map((a) => a.avatarUrl);
 
     Promise.all([
       fetch("/api/members").then((r) => r.json()).catch(() => []),
       fetch("/api/sponsors").then((r) => r.json()).catch(() => []),
-    ]).then(([members, sponsors]) => {
+      fetch("/api/achievements").then((r) => r.json()).catch(() => []),
+    ]).then(([members, sponsors, achievements]) => {
       if (cancelled) return;
       const memberUrls = (members as { avatarUrl?: string }[])
         .map((m) => m.avatarUrl)
@@ -273,8 +273,13 @@ export default function TubeLightLogo() {
       const sponsorUrls = (sponsors as { src?: string }[])
         .map((s) => s.src)
         .filter((u): u is string => Boolean(u));
+      const dynamicAchUrls = Array.isArray(achievements) && achievements.length > 0
+        ? (achievements as { file?: string; image?: string }[])
+            .map((a) => a.image || (a.file ? (a.file.startsWith("/") ? a.file : `/achievements/${a.file}`) : ""))
+            .filter((u): u is string => Boolean(u))
+        : fallbackAchievementUrls;
 
-      const extraUrls = [...memberUrls, ...sponsorUrls, ...alumniUrls, ...achievementUrls];
+      const extraUrls = [...memberUrls, ...sponsorUrls, ...alumniUrls, ...dynamicAchUrls];
       totalCount = DRONE_1_COUNT + 1 + extraUrls.length;
 
       extraUrls.forEach((src) => {
