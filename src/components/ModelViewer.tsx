@@ -297,35 +297,50 @@ export default function ModelViewer({
             }
 
             // Enhance CAD materials
-            if (mat instanceof THREE.MeshPhongMaterial || mat instanceof THREE.MeshBasicMaterial) {
-              const name = mat.name || "";
-              let color = mat.color ? mat.color.clone() : new THREE.Color(0xd0d7de);
-              let metalness = 0.5;
-              let roughness = 0.4;
+            const name = mat.name || "";
+            let color = "color" in mat && mat.color ? (mat.color as THREE.Color).clone() : new THREE.Color(0xd0d7de);
+            let metalness = 0.5;
+            let roughness = 0.4;
+            let matched = false;
 
-              // Parse Autodesk ATF format: Opaque(r,g,b)
-              const opaqueMatch = name.match(/Opaque\((\d+),(\d+),(\d+)\)/);
-              if (opaqueMatch) {
-                const r = parseInt(opaqueMatch[1], 10) / 255;
-                const g = parseInt(opaqueMatch[2], 10) / 255;
-                const b = parseInt(opaqueMatch[3], 10) / 255;
-                color = new THREE.Color(r, g, b);
-                metalness = 0.6;
-                roughness = 0.35;
-              } else if (/steel/i.test(name)) {
-                color = new THREE.Color(0xb0b8c0);
-                metalness = 0.85;
-                roughness = 0.25;
-              } else if (/aluminum|aluminium/i.test(name)) {
-                color = /blue/i.test(name) ? new THREE.Color(0x2563eb) : new THREE.Color(0xcfd8dc);
-                metalness = 0.8;
-                roughness = 0.3;
-              } else if (/gold/i.test(name)) {
-                color = new THREE.Color(0xd4af37);
-                metalness = 0.9;
-                roughness = 0.25;
+            // Parse Autodesk ATF format: Opaque(r,g,b)
+            const opaqueMatch = name.match(/Opaque\((\d+),(\d+),(\d+)\)/);
+            if (opaqueMatch) {
+              const r = parseInt(opaqueMatch[1], 10) / 255;
+              const g = parseInt(opaqueMatch[2], 10) / 255;
+              const b = parseInt(opaqueMatch[3], 10) / 255;
+              color = new THREE.Color(r, g, b);
+              metalness = 0.6;
+              roughness = 0.35;
+              matched = true;
+            } else if (/steel/i.test(name)) {
+              color = new THREE.Color(0xb0b8c0);
+              metalness = 0.85;
+              roughness = 0.25;
+              matched = true;
+            } else if (/aluminum|aluminium/i.test(name)) {
+              color = /blue/i.test(name) ? new THREE.Color(0x2563eb) : new THREE.Color(0xcfd8dc);
+              metalness = 0.8;
+              roughness = 0.3;
+              matched = true;
+            } else if (/gold/i.test(name)) {
+              color = new THREE.Color(0xd4af37);
+              metalness = 0.9;
+              roughness = 0.25;
+              matched = true;
+            }
+
+            if (mat instanceof THREE.MeshStandardMaterial) {
+              if (matched) {
+                mat.color = color;
+                mat.metalness = metalness;
+                mat.roughness = roughness;
+                mat.needsUpdate = true;
               }
+              return mat;
+            }
 
+            if (mat instanceof THREE.MeshPhongMaterial || mat instanceof THREE.MeshBasicMaterial) {
               const standardMat = new THREE.MeshStandardMaterial({
                 name: mat.name,
                 color,
