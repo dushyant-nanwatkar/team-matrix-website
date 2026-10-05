@@ -32,11 +32,7 @@ export async function POST(request: NextRequest) {
     // empty body is fine
   }
 
-  const hasAuth = Boolean(
-    customToken ||
-    process.env.BLOB_READ_WRITE_TOKEN ||
-    (process.env.VERCEL_OIDC_TOKEN && process.env.BLOB_STORE_ID)
-  );
+  const hasAuth = Boolean(customToken || isBlobConfigured());
 
   if (!hasAuth) {
     return NextResponse.json(

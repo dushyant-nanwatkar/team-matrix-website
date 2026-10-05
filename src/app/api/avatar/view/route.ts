@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { type NextRequest, NextResponse } from "next/server";
 import { get } from "@vercel/blob";
+import { isBlobConfigured } from "@/lib/admin-files";
 
 const MIME_TYPES: Record<string, string> = {
   ".glb": "model/gltf-binary",
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
   const access = (process.env.BLOB_ACCESS as "public" | "private") || "private";
 
   // 1. Try Vercel Blob first (when configured)
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
+  if (isBlobConfigured()) {
     try {
       const result = await get(pathname, { access });
       if (result && result.statusCode === 200 && result.stream) {

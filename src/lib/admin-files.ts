@@ -16,11 +16,14 @@ export function requireAuth(request: NextRequest): NextResponse | null {
   return null;
 }
 
+// Blob is usable when either:
+//  - BLOB_READ_WRITE_TOKEN is set (classic token auth), or
+//  - BLOB_STORE_ID is set (OIDC auth). On Vercel the OIDC token is NOT in
+//    process.env at runtime — it arrives per-request via the
+//    `x-vercel-oidc-token` header, which @vercel/blob reads automatically.
+//    Locally, `vercel env pull` writes VERCEL_OIDC_TOKEN to .env.local.
 export function isBlobConfigured(): boolean {
-  return Boolean(
-    process.env.BLOB_READ_WRITE_TOKEN ||
-    (process.env.VERCEL_OIDC_TOKEN && process.env.BLOB_STORE_ID)
-  );
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
 // Matches your Vercel Blob store setting ('private' by default from Vercel's quickstart,
