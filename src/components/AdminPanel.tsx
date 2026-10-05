@@ -7,6 +7,7 @@ import type { Member, Department } from "@/data/members";
 import type { SponsorEntry } from "@/app/api/sponsors/route";
 import type { ProjectItem, ProjectStat } from "@/data/projects";
 import ModelViewer from "@/components/ModelViewer";
+import { getAssetUrl } from "@/lib/asset-url";
 
 type AuthState = "checking" | "login" | "dashboard";
 type Tab = "projects" | "achievements" | "gallery" | "sponsors" | "members";
@@ -2018,7 +2019,7 @@ function ProjectsTab() {
                       <div className="flex items-center gap-4">
                         <div className="relative w-24 h-16 rounded-lg overflow-hidden border border-white/10 flex-shrink-0 bg-black/60">
                           <img
-                            src={editPreviewUrl}
+                            src={getAssetUrl(editPreviewUrl)}
                             alt="Current Preview"
                             className="w-full h-full object-cover"
                           />
@@ -2151,9 +2152,9 @@ function ProjectsTab() {
                   {/* 3D Model Preview in Admin (Click to initiate) */}
                   <div className="w-full rounded-xl overflow-hidden border border-white/10 my-1">
                     <ModelViewer
-                      url={item.modelUrl}
-                      mtlUrl={item.mtlUrl}
-                      previewImage={item.previewImage}
+                      url={getAssetUrl(item.modelUrl)}
+                      mtlUrl={item.mtlUrl ? getAssetUrl(item.mtlUrl) : undefined}
+                      previewImage={item.previewImage ? getAssetUrl(item.previewImage) : undefined}
                       title={item.title}
                       height={240}
                       interactiveOnlyOnClick={true}

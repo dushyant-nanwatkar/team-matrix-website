@@ -7,6 +7,7 @@ import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import { toStoragePathname } from "@/lib/asset-url";
 
 export interface ModelViewerProps {
   url: string;
@@ -275,7 +276,8 @@ export default function ModelViewer({
     scene.add(shadowPlane);
 
     // 6. Model Loader (OBJ / MTL / GLTF)
-    const ext = url.split("?")[0].split(".").pop()?.toLowerCase();
+    const storagePath = toStoragePathname(url);
+    const ext = storagePath.split(".").pop()?.toLowerCase();
     const modelGroup = new THREE.Group();
     modelGroupRef.current = modelGroup;
     scene.add(modelGroup);

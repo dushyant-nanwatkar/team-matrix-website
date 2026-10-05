@@ -2,6 +2,7 @@ import path from "path";
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, saveUploadedImage, deletePublicFile, readJsonData, writeJsonData } from "@/lib/admin-files";
+import { resolveAchievementImage } from "@/lib/asset-url";
 
 const BLOB_KEY = "data/achievements.json";
 const DATA_PATH = path.join(process.cwd(), "public", "achievements", "captions.json");
@@ -13,12 +14,7 @@ interface AchievementRawEntry {
   note?: string;
 }
 
-function resolveAchievementPath(file: string): string {
-  if (file.startsWith("http://") || file.startsWith("https://") || file.startsWith("/")) {
-    return file;
-  }
-  return `/achievements/${file}`;
-}
+const resolveAchievementPath = resolveAchievementImage;
 
 export async function GET(request: NextRequest) {
   const unauthorized = requireAuth(request);

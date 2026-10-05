@@ -1,8 +1,11 @@
 import fs from "fs";
 import path from "path";
 import { NextRequest, NextResponse } from "next/server";
-import { put } from "@vercel/blob";
+import { put, head, get, BlobNotFoundError } from "@vercel/blob";
 import { requireAuth, isBlobConfigured } from "@/lib/admin-files";
+import { normalizeStories } from "@/lib/stories";
+import { ALUMNI } from "@/data/alumni";
+import { toStoragePathname } from "@/lib/asset-url";
 
 const PUBLIC_DIRS = [
   "members",
@@ -23,10 +26,14 @@ export async function POST(request: NextRequest) {
   if (unauthorized) return unauthorized;
 
   let customToken = "";
+  let force = false;
   try {
     const body = await request.json().catch(() => ({}));
     if (body && typeof body.token === "string" && body.token.trim()) {
       customToken = body.token.trim();
+    }
+    if (body && body.force) {
+      force = Boolean(body.force);
     }
   } catch {
     // empty body is fine
@@ -111,27 +118,78 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // 2. Upload JSON datasets
-  const JSON_FILES = [
-    { key: "data/members.json", local: "src/data/members.json" },
-    { key: "data/projects.json", local: "src/data/projects.json" },
-    { key: "data/sponsors.json", local: "src/data/sponsors.json" },
-    { key: "data/achievements.json", local: "public/achievements/captions.json" },
-    { key: "data/stories.json", local: "public/stories/captions.json" },
+  // 2. Upload JSON datasets.
+  // Blob is the source of truth once seeded, so existing keys are NOT
+  // overwritten (that would wipe admin-panel edits) unless `force` is passed.
+  const readLocal = (rel: string) => {
+    const fullPath = path.join(/*turbopackIgnore: true*/ process.cwd(), rel);
+    return fs.existsSync(fullPath) ? JSON.parse(fs.readFileSync(fullPath, "utf-8")) : undefined;
+  };
+
+  const JSON_FILES: { key: string; load: () => unknown }[] = [
+    { key: "data/members.json", load: () => readLocal("src/data/members.json") },
+    { key: "data/projects.json", load: () => readLocal("src/data/projects.json") },
+    { key: "data/sponsors.json", load: () => readLocal("src/data/sponsors.json") },
+    { key: "data/achievements.json", load: () => readLocal("public/achievements/captions.json") },
+    {
+      key: "data/stories.json",
+      load: () => {
+        const raw = readLocal("public/stories/captions.json");
+        return raw === undefined ? undefined : normalizeStories(raw);
+      },
+    },
+    {
+      key: "data/alumni.json",
+      load: () => ALUMNI.map((a) => ({ ...a, avatarUrl: `/${toStoragePathname(a.avatarUrl)}` })),
+    },
   ];
 
+  const blobOpts = { ...(token ? { token } : {}) };
   let uploadedJsons = 0;
-  for (const item of JSON_FILES) {
-    const fullPath = path.join(/*turbopackIgnore: true*/ process.cwd(), item.local);
-    if (!fs.existsSync(fullPath)) continue;
+  let keptJsons = 0;
 
+  for (const item of JSON_FILES) {
     try {
-      const content = fs.readFileSync(fullPath, "utf-8");
-      await put(item.key, content, {
+      let exists = false;
+      try {
+        await head(item.key, blobOpts);
+        exists = true;
+      } catch (err) {
+        if (!(err instanceof BlobNotFoundError)) throw err;
+      }
+
+      // Repair: the first migration copied the stories captions map as-is,
+      // but the site expects WorkItem[]. Convert it in place, keeping content.
+      if (exists && !force && item.key === "data/stories.json") {
+        const current = await get(item.key, { access, useCache: false, ...blobOpts });
+        const parsed = current?.stream ? JSON.parse(await new Response(current.stream).text()) : null;
+        if (parsed && !Array.isArray(parsed)) {
+          await put(item.key, JSON.stringify(normalizeStories(parsed), null, 2), {
+            access,
+            allowOverwrite: true,
+            contentType: "application/json",
+            cacheControlMaxAge: 60,
+            ...blobOpts,
+          });
+          uploadedJsons++;
+          continue;
+        }
+      }
+
+      if (exists && !force) {
+        keptJsons++;
+        continue;
+      }
+
+      const data = item.load();
+      if (data === undefined) continue;
+
+      await put(item.key, JSON.stringify(data, null, 2), {
         access,
         allowOverwrite: true,
         contentType: "application/json",
-        ...(token ? { token } : {}),
+        cacheControlMaxAge: 60,
+        ...blobOpts,
       });
       uploadedJsons++;
     } catch (err) {
@@ -139,7 +197,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (uploadedFiles === 0 && uploadedJsons === 0) {
+  if (uploadedFiles === 0 && uploadedJsons === 0 && keptJsons === 0) {
     return NextResponse.json(
       {
         ok: false,
@@ -147,7 +205,7 @@ export async function POST(request: NextRequest) {
           errors.length > 0
             ? `Nothing was uploaded. First error: ${errors[0]}`
             : "No local files were found to migrate in this deployment.",
-        stats: { uploadedFiles, skippedFiles, uploadedJsons, errors: errors.slice(0, 5) },
+        stats: { uploadedFiles, skippedFiles, uploadedJsons, keptJsons, errors: errors.slice(0, 5) },
       },
       { status: 500 }
     );
@@ -160,6 +218,7 @@ export async function POST(request: NextRequest) {
       uploadedFiles,
       skippedFiles,
       uploadedJsons,
+      keptJsons,
       errors: errors.length > 0 ? errors.slice(0, 5) : [],
     },
   });

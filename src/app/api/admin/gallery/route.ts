@@ -2,8 +2,14 @@ import path from "path";
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, saveUploadedImage, deletePublicFile, readJsonData, writeJsonData } from "@/lib/admin-files";
-import { getInitialLocalStories } from "@/app/api/works/route";
+import { normalizeStories, getInitialLocalStories } from "@/lib/stories";
+import { isSameAsset } from "@/lib/asset-url";
 import type { WorkItem } from "@/data/works";
+
+async function loadStories(): Promise<WorkItem[]> {
+  const items = normalizeStories(await readJsonData<unknown>(BLOB_KEY, DATA_PATH, []));
+  return items.length > 0 ? items : getInitialLocalStories();
+}
 
 const BLOB_KEY = "data/stories.json";
 const DATA_PATH = path.join(process.cwd(), "src", "data", "stories.json");
@@ -28,10 +34,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: (err as Error).message }, { status: 400 });
   }
 
-  let items = await readJsonData<WorkItem[]>(BLOB_KEY, DATA_PATH, []);
-  if (!items || items.length === 0) {
-    items = getInitialLocalStories();
-  }
+  const items = await loadStories();
 
   const newItem: WorkItem = {
     id: crypto.randomBytes(6).toString("hex"),
@@ -61,12 +64,9 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "Missing or invalid img" }, { status: 400 });
   }
 
-  let items = await readJsonData<WorkItem[]>(BLOB_KEY, DATA_PATH, []);
-  if (!items || items.length === 0) {
-    items = getInitialLocalStories();
-  }
+  const items = await loadStories();
 
-  const target = items.find((i) => i.img === img || path.basename(i.img) === path.basename(img));
+  const target = items.find((i) => isSameAsset(i.img, img));
   if (!target) {
     return NextResponse.json({ ok: false, error: "Story item not found" }, { status: 404 });
   }
@@ -99,12 +99,9 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "Missing or invalid img" }, { status: 400 });
   }
 
-  let items = await readJsonData<WorkItem[]>(BLOB_KEY, DATA_PATH, []);
-  if (!items || items.length === 0) {
-    items = getInitialLocalStories();
-  }
+  let items = await loadStories();
 
-  const target = items.find((i) => i.img === img || path.basename(i.img) === path.basename(img));
+  const target = items.find((i) => isSameAsset(i.img, img));
   if (target) {
     await deletePublicFile(target.img);
     items = items.filter((i) => i !== target);

@@ -18,6 +18,7 @@ import Reveal from "./Reveal";
 import ApplyPopup from "./ApplyPopup";
 import { ALUMNI } from "@/data/alumni";
 import achievementCaptionsData from "../../public/achievements/captions.json";
+import { resolveAchievementImage } from "@/lib/asset-url";
 
 interface AchievementCaption {
   file: string;
@@ -258,14 +259,14 @@ export default function TubeLightLogo() {
 
     // 3) Members, sponsors, alumni, and achievements photos. Members/sponsors
     // are fs/JSON-backed and only knowable via their API routes; alumni and
-    const fallbackAchievementUrls = achievementCaptions.map((c) => `/achievements/${c.file}`);
-    const alumniUrls = ALUMNI.map((a) => a.avatarUrl);
+    const fallbackAchievementUrls = achievementCaptions.map((c) => resolveAchievementImage(c.file));
 
     Promise.all([
       fetch("/api/members").then((r) => r.json()).catch(() => []),
       fetch("/api/sponsors").then((r) => r.json()).catch(() => []),
       fetch("/api/achievements").then((r) => r.json()).catch(() => []),
-    ]).then(([members, sponsors, achievements]) => {
+      fetch("/api/alumni").then((r) => r.json()).catch(() => ALUMNI),
+    ]).then(([members, sponsors, achievements, alumni]) => {
       if (cancelled) return;
       const memberUrls = (members as { avatarUrl?: string }[])
         .map((m) => m.avatarUrl)
@@ -273,9 +274,12 @@ export default function TubeLightLogo() {
       const sponsorUrls = (sponsors as { src?: string }[])
         .map((s) => s.src)
         .filter((u): u is string => Boolean(u));
+      const alumniUrls = (Array.isArray(alumni) ? (alumni as { avatarUrl?: string }[]) : ALUMNI)
+        .map((a) => a.avatarUrl)
+        .filter((u): u is string => Boolean(u));
       const dynamicAchUrls = Array.isArray(achievements) && achievements.length > 0
         ? (achievements as { file?: string; image?: string }[])
-            .map((a) => a.image || (a.file ? (a.file.startsWith("/") ? a.file : `/achievements/${a.file}`) : ""))
+            .map((a) => a.image || resolveAchievementImage(a.file))
             .filter((u): u is string => Boolean(u))
         : fallbackAchievementUrls;
 

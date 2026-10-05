@@ -4,6 +4,7 @@ import { memo, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import DepthCarousel, { type DepthCarouselItem } from "./DepthCarousel";
 import Reveal from "./Reveal";
 import captionsData from "../../public/achievements/captions.json";
+import { resolveAchievementImage } from "@/lib/asset-url";
 
 interface AchievementCaption {
   id?: string;
@@ -103,7 +104,7 @@ function AchievementsShowcase({ variant = "pinned" }: AchievementsShowcaseProps)
   const items: DepthCarouselItem[] = useMemo(
     () =>
       achievements.map((c) => ({
-        image: c.image || (c.file.startsWith("/") ? c.file : `/achievements/${c.file}`),
+        image: c.image || resolveAchievementImage(c.file),
         alt: c.caption,
       })),
     [achievements]

@@ -1,5 +1,6 @@
 import path from "path";
-import { readJsonData, getAssetUrl } from "@/lib/admin-files";
+import { readJsonData } from "@/lib/admin-files";
+import { resolveAchievementImage } from "@/lib/asset-url";
 
 export const dynamic = "force-dynamic";
 
@@ -23,9 +24,7 @@ export async function GET() {
 
   const items: AchievementItem[] = list.map((item, index) => {
     const file = item.file || "";
-    const clean = file.replace(/^\/+/, "");
-    const pathname = clean.startsWith("achievements/") ? clean : `achievements/${clean}`;
-    const image = getAssetUrl(file.startsWith("http://") || file.startsWith("https://") ? file : pathname);
+    const image = resolveAchievementImage(file);
 
     return {
       id: item.id || `ach-${index + 1}`,

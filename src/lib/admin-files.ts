@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { put, del, list, get } from "@vercel/blob";
 import { isAuthenticated } from "./admin-auth";
+import { toStoragePathname } from "./asset-url";
 export { getAssetUrl } from "./asset-url";
 
 // Server-only helpers shared by the admin CRUD route handlers. Never import
@@ -81,42 +82,33 @@ export async function saveUploadedImage(file: File, subdir: string): Promise<str
 }
 
 // Best-effort delete of a previously uploaded file.
-// Supports private blob proxy URLs, direct Vercel Blob URLs, and local public files.
+// When Blob is configured it is the source of truth, so any stored reference
+// (blob view URL, direct blob URL, or a migrated "/members/x.webp" path) is
+// resolved to its blob pathname and deleted there. Otherwise deletes from /public.
 export async function deletePublicFile(urlPath: string): Promise<void> {
   if (!urlPath) return;
 
-  // 1. If it's a private blob URL routed through /api/avatar/view
-  if (urlPath.includes("/api/avatar/view?pathname=")) {
-    if (isBlobConfigured()) {
-      try {
-        const u = new URL(urlPath, "http://localhost");
-        const pathname = u.searchParams.get("pathname");
-        if (pathname) {
-          await del(pathname);
-        }
-      } catch (err) {
-        console.warn(`[blob] Failed to delete blob ${urlPath}:`, err);
-      }
+  if (isBlobConfigured()) {
+    try {
+      const target =
+        urlPath.startsWith("http://") || urlPath.startsWith("https://")
+          ? urlPath
+          : toStoragePathname(urlPath);
+      if (target) await del(target);
+    } catch (err) {
+      console.warn(`[blob] Failed to delete blob ${urlPath}:`, err);
     }
     return;
   }
 
-  // 2. If it's a direct Vercel Blob URL (public store)
-  if (urlPath.startsWith("http://") || urlPath.startsWith("https://")) {
-    if (isBlobConfigured()) {
-      try {
-        await del(urlPath);
-      } catch (err) {
-        console.warn(`[blob] Failed to delete blob ${urlPath}:`, err);
-      }
-    }
+  if (urlPath.startsWith("http://") || urlPath.startsWith("https://") || urlPath.includes("/api/")) {
     return;
   }
 
-  // 3. Local file delete
+  // Local file delete
   try {
     const publicDir = path.join(process.cwd(), "public");
-    const rel = urlPath.replace(/^\/+/, "");
+    const rel = toStoragePathname(urlPath);
     const resolved = path.join(publicDir, rel);
     if (!resolved.startsWith(publicDir + path.sep)) return;
     if (fs.existsSync(resolved)) {
@@ -144,11 +136,15 @@ export function writeJsonFile(filePath: string, data: unknown) {
   }
 }
 
-// Reads JSON data either from Vercel Blob (if configured) or falls back to local file.
+// Reads JSON data from Vercel Blob (the source of truth when configured).
+// Falls back to the bundled local file only when Blob isn't configured, or the
+// key doesn't exist in Blob yet (i.e. before the first migration).
 export async function readJsonData<T>(key: string, localFilePath: string, fallback: T): Promise<T> {
   if (isBlobConfigured()) {
     try {
-      const result = await get(key, { access: BLOB_ACCESS });
+      // useCache: false — admin edits overwrite the same key, so always read the
+      // latest version from origin instead of a CDN-cached copy.
+      const result = await get(key, { access: BLOB_ACCESS, useCache: false });
       if (result && result.stream) {
         const text = await new Response(result.stream).text();
         return JSON.parse(text) as T;
@@ -168,6 +164,7 @@ export async function writeJsonData<T>(key: string, localFilePath: string, data:
         access: BLOB_ACCESS,
         allowOverwrite: true,
         contentType: "application/json",
+        cacheControlMaxAge: 60,
       });
     } catch (err) {
       console.error(`[blob] Failed to write ${key} to Blob:`, err);
@@ -222,6 +219,28 @@ export async function listPublicObjectFiles(): Promise<{ name: string; path: str
   const result: { name: string; path: string; size: number; ext: string }[] = [];
   const seenNames = new Set<string>();
 
+  // Blob is the source of truth when configured.
+  if (isBlobConfigured()) {
+    try {
+      const { blobs } = await list({ prefix: "objects/" });
+      for (const blob of blobs) {
+        const name = path.basename(blob.pathname);
+        if (!name || seenNames.has(name)) continue;
+        seenNames.add(name);
+        result.push({
+          name,
+          // Stored as a relative path; getAssetUrl() resolves it to Blob at read time.
+          path: `/${blob.pathname}`,
+          size: blob.size,
+          ext: path.extname(name).toLowerCase(),
+        });
+      }
+    } catch (err) {
+      console.warn("[blob] Failed to list object blobs:", err);
+    }
+    return result.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   const objectsDir = path.join(process.cwd(), "public", "objects");
   if (fs.existsSync(objectsDir)) {
     try {
@@ -241,31 +260,6 @@ export async function listPublicObjectFiles(): Promise<{ name: string; path: str
       }
     } catch {
       // directory read failure
-    }
-  }
-
-  if (isBlobConfigured()) {
-    try {
-      const { blobs } = await list({ prefix: "objects/" });
-      for (const blob of blobs) {
-        const name = path.basename(blob.pathname);
-        const ext = path.extname(name).toLowerCase();
-        if (!seenNames.has(name)) {
-          seenNames.add(name);
-          const modelPath =
-            BLOB_ACCESS === "private"
-              ? `/api/avatar/view?pathname=${encodeURIComponent(blob.pathname)}`
-              : blob.url;
-          result.push({
-            name,
-            path: modelPath,
-            size: blob.size,
-            ext,
-          });
-        }
-      }
-    } catch (err) {
-      console.warn("[blob] Failed to list object blobs:", err);
     }
   }
 
