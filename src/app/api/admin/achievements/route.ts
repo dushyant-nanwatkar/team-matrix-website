@@ -1,8 +1,9 @@
 import path from "path";
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, saveUploadedImage, deletePublicFile, readJsonFile, writeJsonFile } from "@/lib/admin-files";
+import { requireAuth, saveUploadedImage, deletePublicFile, readJsonData, writeJsonData } from "@/lib/admin-files";
 
+const BLOB_KEY = "data/achievements.json";
 const DATA_PATH = path.join(process.cwd(), "public", "achievements", "captions.json");
 
 interface AchievementRawEntry {
@@ -12,14 +13,21 @@ interface AchievementRawEntry {
   note?: string;
 }
 
+function resolveAchievementPath(file: string): string {
+  if (file.startsWith("http://") || file.startsWith("https://") || file.startsWith("/")) {
+    return file;
+  }
+  return `/achievements/${file}`;
+}
+
 export async function GET(request: NextRequest) {
   const unauthorized = requireAuth(request);
   if (unauthorized) return unauthorized;
 
-  const rawList = readJsonFile<AchievementRawEntry[]>(DATA_PATH, []);
+  const rawList = await readJsonData<AchievementRawEntry[]>(BLOB_KEY, DATA_PATH, []);
   const items = rawList.map((item, idx) => {
     const file = item.file || "";
-    const image = file.startsWith("/") ? file : `/achievements/${file}`;
+    const image = resolveAchievementPath(file);
     return {
       id: item.id || `ach-${idx + 1}`,
       file,
@@ -55,24 +63,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: (err as Error).message }, { status: 400 });
   }
 
-  const filename = path.basename(urlPath);
-  const items = readJsonFile<AchievementRawEntry[]>(DATA_PATH, []);
+  const items = await readJsonData<AchievementRawEntry[]>(BLOB_KEY, DATA_PATH, []);
   const id = `ach-${crypto.randomBytes(4).toString("hex")}`;
   const entry: AchievementRawEntry = {
     id,
-    file: filename,
+    file: urlPath,
     caption,
     ...(note ? { note } : {}),
   };
 
   items.push(entry);
-  writeJsonFile(DATA_PATH, items);
+  await writeJsonData(BLOB_KEY, DATA_PATH, items);
 
   return NextResponse.json({
     ok: true,
     achievement: {
       ...entry,
-      image: `/achievements/${filename}`,
+      image: resolveAchievementPath(urlPath),
     },
   });
 }
@@ -91,7 +98,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "Missing achievement id" }, { status: 400 });
   }
 
-  const items = readJsonFile<AchievementRawEntry[]>(DATA_PATH, []);
+  const items = await readJsonData<AchievementRawEntry[]>(BLOB_KEY, DATA_PATH, []);
   const target = items.find((item, idx) => item.id === id || (!item.id && `ach-${idx + 1}` === id) || item.file === id);
 
   if (!target) {
@@ -118,9 +125,8 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ ok: false, error: (err as Error).message }, { status: 400 });
     }
 
-    const oldFilePath = target.file.startsWith("/") ? target.file : `/achievements/${target.file}`;
-    deletePublicFile(oldFilePath);
-    target.file = path.basename(newUrlPath);
+    await deletePublicFile(resolveAchievementPath(target.file));
+    target.file = newUrlPath;
   }
 
   // Ensure item has an id
@@ -128,13 +134,13 @@ export async function PATCH(request: NextRequest) {
     target.id = id;
   }
 
-  writeJsonFile(DATA_PATH, items);
+  await writeJsonData(BLOB_KEY, DATA_PATH, items);
 
   return NextResponse.json({
     ok: true,
     achievement: {
       ...target,
-      image: target.file.startsWith("/") ? target.file : `/achievements/${target.file}`,
+      image: resolveAchievementPath(target.file),
     },
   });
 }
@@ -150,7 +156,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "Missing id" }, { status: 400 });
   }
 
-  const items = readJsonFile<AchievementRawEntry[]>(DATA_PATH, []);
+  const items = await readJsonData<AchievementRawEntry[]>(BLOB_KEY, DATA_PATH, []);
   const index = items.findIndex((item, idx) => item.id === id || (!item.id && `ach-${idx + 1}` === id) || item.file === id);
 
   if (index === -1) {
@@ -158,11 +164,10 @@ export async function DELETE(request: NextRequest) {
   }
 
   const target = items[index];
-  const oldFilePath = target.file.startsWith("/") ? target.file : `/achievements/${target.file}`;
-  deletePublicFile(oldFilePath);
+  await deletePublicFile(resolveAchievementPath(target.file));
 
   items.splice(index, 1);
-  writeJsonFile(DATA_PATH, items);
+  await writeJsonData(BLOB_KEY, DATA_PATH, items);
 
   return NextResponse.json({ ok: true });
 }
@@ -178,7 +183,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "Invalid order array" }, { status: 400 });
     }
 
-    const items = readJsonFile<AchievementRawEntry[]>(DATA_PATH, []);
+    const items = await readJsonData<AchievementRawEntry[]>(BLOB_KEY, DATA_PATH, []);
     const itemMap = new Map<string, AchievementRawEntry>();
 
     items.forEach((item, idx) => {
@@ -205,7 +210,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    writeJsonFile(DATA_PATH, reordered);
+    await writeJsonData(BLOB_KEY, DATA_PATH, reordered);
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ ok: false, error: (err as Error).message }, { status: 500 });

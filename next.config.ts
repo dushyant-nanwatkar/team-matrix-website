@@ -10,6 +10,12 @@ const nextConfig: NextConfig = {
     // on a new deploy, so the optimizer's cache can safely be long-lived
     // instead of the 60s default.
     minimumCacheTTL: 31536000,
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.public.blob.vercel-storage.com",
+      },
+    ],
   },
 };
 

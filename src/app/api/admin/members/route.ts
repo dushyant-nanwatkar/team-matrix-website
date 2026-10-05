@@ -1,9 +1,10 @@
 import path from "path";
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, saveUploadedImage, deletePublicFile, readJsonFile, writeJsonFile } from "@/lib/admin-files";
+import { requireAuth, saveUploadedImage, deletePublicFile, readJsonData, writeJsonData } from "@/lib/admin-files";
 import type { Member, Department } from "@/data/members";
 
+const BLOB_KEY = "data/members.json";
 const DATA_PATH = path.join(process.cwd(), "src", "data", "members.json");
 
 const DEPARTMENTS: Department[] = ["Leadership", "Mechanical", "Electronics", "Algorithms", "Management"];
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: (err as Error).message }, { status: 400 });
   }
 
-  const members = readJsonFile<Member[]>(DATA_PATH, []);
+  const members = await readJsonData<Member[]>(BLOB_KEY, DATA_PATH, []);
   const entry: Member = {
     id: crypto.randomBytes(6).toString("hex"),
     name,
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
     ...(lead ? { lead: true } : {}),
   };
   members.push(entry);
-  writeJsonFile(DATA_PATH, members);
+  await writeJsonData(BLOB_KEY, DATA_PATH, members);
 
   return NextResponse.json({ ok: true, member: entry });
 }
@@ -73,7 +74,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "Missing id" }, { status: 400 });
   }
 
-  const members = readJsonFile<Member[]>(DATA_PATH, []);
+  const members = await readJsonData<Member[]>(BLOB_KEY, DATA_PATH, []);
   const target = members.find((m) => m.id === id);
   if (!target) {
     return NextResponse.json({ ok: false, error: "Member not found" }, { status: 404 });
@@ -102,11 +103,11 @@ export async function PATCH(request: NextRequest) {
     } catch (err) {
       return NextResponse.json({ ok: false, error: (err as Error).message }, { status: 400 });
     }
-    deletePublicFile(target.avatarUrl);
+    await deletePublicFile(target.avatarUrl);
     target.avatarUrl = newAvatarUrl;
   }
 
-  writeJsonFile(DATA_PATH, members);
+  await writeJsonData(BLOB_KEY, DATA_PATH, members);
   return NextResponse.json({ ok: true, member: target });
 }
 
@@ -120,14 +121,18 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "Missing id" }, { status: 400 });
   }
 
-  const members = readJsonFile<Member[]>(DATA_PATH, []);
+  const members = await readJsonData<Member[]>(BLOB_KEY, DATA_PATH, []);
   const target = members.find((m) => m.id === id);
   if (!target) {
     return NextResponse.json({ ok: false, error: "Member not found" }, { status: 404 });
   }
 
-  deletePublicFile(target.avatarUrl);
-  writeJsonFile(DATA_PATH, members.filter((m) => m.id !== id));
+  await deletePublicFile(target.avatarUrl);
+  await writeJsonData(
+    BLOB_KEY,
+    DATA_PATH,
+    members.filter((m) => m.id !== id)
+  );
 
   return NextResponse.json({ ok: true });
 }

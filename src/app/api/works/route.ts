@@ -1,55 +1,39 @@
 import fs from "fs";
 import path from "path";
 import type { WorkItem } from "@/data/works";
+import { readJsonData } from "@/lib/admin-files";
 
-// Supported image extensions the admin can drop in /public/stories/
-const IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
+export const dynamic = "force-dynamic";
 
-export const dynamic = "force-dynamic"; // always re-read the directory on each request
+const BLOB_KEY = "data/stories.json";
+const DATA_PATH = path.join(process.cwd(), "src", "data", "stories.json");
 
-interface CaptionEntry {
-  title?: string;
-  story?: string;
-}
-
-function readCaptions(storiesDir: string): Record<string, CaptionEntry> {
-  try {
-    const raw = fs.readFileSync(path.join(storiesDir, "captions.json"), "utf-8");
-    return JSON.parse(raw) as Record<string, CaptionEntry>;
-  } catch {
-    return {};
-  }
-}
-
-export async function GET() {
+export function getInitialLocalStories(): WorkItem[] {
   const storiesDir = path.join(process.cwd(), "public", "stories");
+  const captionsPath = path.join(storiesDir, "captions.json");
+  const IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".webp", ".avif"]);
 
   let files: string[] = [];
   try {
     files = fs
       .readdirSync(storiesDir)
       .filter((f) => IMAGE_EXTS.has(path.extname(f).toLowerCase()))
-      .sort(); // stable alphabetical order
+      .sort();
   } catch {
-    // Directory doesn't exist or can't be read — return empty list
-    return Response.json([]);
+    return [];
   }
 
-  if (files.length === 0) {
-    return Response.json([]);
+  let captions: Record<string, { title?: string; story?: string }> = {};
+  try {
+    captions = JSON.parse(fs.readFileSync(captionsPath, "utf-8"));
+  } catch {
+    captions = {};
   }
 
-  const captions = readCaptions(storiesDir);
-
-  const items: WorkItem[] = files.map((filename, idx) => {
+  return files.map((filename, idx) => {
     const entry = captions[filename];
-
-    // Derive a human-readable title from the filename when there's no caption entry
     const base = path.basename(filename, path.extname(filename));
-    const derivedTitle = base
-      .replace(/[-_]+/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
-
+    const derivedTitle = base.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
     return {
       id: String(idx + 1),
       img: `/stories/${filename}`,
@@ -58,6 +42,13 @@ export async function GET() {
       story: entry?.story,
     };
   });
+}
 
+export async function GET() {
+  const items = await readJsonData<WorkItem[]>(BLOB_KEY, DATA_PATH, []);
+  if (!items || items.length === 0) {
+    const initial = getInitialLocalStories();
+    return Response.json(initial);
+  }
   return Response.json(items);
 }

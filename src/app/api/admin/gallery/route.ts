@@ -1,14 +1,12 @@
 import path from "path";
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, saveUploadedImage, deletePublicFile, readJsonFile, writeJsonFile } from "@/lib/admin-files";
+import { requireAuth, saveUploadedImage, deletePublicFile, readJsonData, writeJsonData } from "@/lib/admin-files";
+import { getInitialLocalStories } from "@/app/api/works/route";
+import type { WorkItem } from "@/data/works";
 
-const STORIES_DIR = path.join(process.cwd(), "public", "stories");
-const CAPTIONS_PATH = path.join(STORIES_DIR, "captions.json");
-
-interface CaptionEntry {
-  title?: string;
-  story?: string;
-}
+const BLOB_KEY = "data/stories.json";
+const DATA_PATH = path.join(process.cwd(), "src", "data", "stories.json");
 
 export async function POST(request: NextRequest) {
   const unauthorized = requireAuth(request);
@@ -30,12 +28,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: (err as Error).message }, { status: 400 });
   }
 
-  const filename = path.basename(urlPath);
-  const captions = readJsonFile<Record<string, CaptionEntry>>(CAPTIONS_PATH, {});
-  captions[filename] = { title: title || undefined, story: story || undefined };
-  writeJsonFile(CAPTIONS_PATH, captions);
+  let items = await readJsonData<WorkItem[]>(BLOB_KEY, DATA_PATH, []);
+  if (!items || items.length === 0) {
+    items = getInitialLocalStories();
+  }
 
-  return NextResponse.json({ ok: true, img: urlPath });
+  const newItem: WorkItem = {
+    id: crypto.randomBytes(6).toString("hex"),
+    img: urlPath,
+    url: "#",
+    title: title || undefined,
+    story: story || undefined,
+  };
+
+  items.unshift(newItem);
+  await writeJsonData(BLOB_KEY, DATA_PATH, items);
+
+  return NextResponse.json({ ok: true, img: urlPath, item: newItem });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -43,17 +52,27 @@ export async function PATCH(request: NextRequest) {
   if (unauthorized) return unauthorized;
 
   const form = await request.formData();
-  const img = String(form.get("img") ?? "");
+  const img = String(form.get("img") ?? "").trim();
   const file = form.get("image");
   const title = String(form.get("title") ?? "").trim();
   const story = String(form.get("story") ?? "").trim();
 
-  if (!img || !img.startsWith("/stories/")) {
+  if (!img) {
     return NextResponse.json({ ok: false, error: "Missing or invalid img" }, { status: 400 });
   }
 
-  const captions = readJsonFile<Record<string, CaptionEntry>>(CAPTIONS_PATH, {});
-  let filename = path.basename(img);
+  let items = await readJsonData<WorkItem[]>(BLOB_KEY, DATA_PATH, []);
+  if (!items || items.length === 0) {
+    items = getInitialLocalStories();
+  }
+
+  const target = items.find((i) => i.img === img || path.basename(i.img) === path.basename(img));
+  if (!target) {
+    return NextResponse.json({ ok: false, error: "Story item not found" }, { status: 404 });
+  }
+
+  if (form.has("title")) target.title = title || undefined;
+  if (form.has("story")) target.story = story || undefined;
 
   if (file instanceof File && file.size > 0) {
     let newUrlPath: string;
@@ -62,15 +81,12 @@ export async function PATCH(request: NextRequest) {
     } catch (err) {
       return NextResponse.json({ ok: false, error: (err as Error).message }, { status: 400 });
     }
-    deletePublicFile(img);
-    delete captions[filename];
-    filename = path.basename(newUrlPath);
+    await deletePublicFile(target.img);
+    target.img = newUrlPath;
   }
 
-  captions[filename] = { title: title || undefined, story: story || undefined };
-  writeJsonFile(CAPTIONS_PATH, captions);
-
-  return NextResponse.json({ ok: true, img: `/stories/${filename}` });
+  await writeJsonData(BLOB_KEY, DATA_PATH, items);
+  return NextResponse.json({ ok: true, img: target.img, item: target });
 }
 
 export async function DELETE(request: NextRequest) {
@@ -78,18 +94,21 @@ export async function DELETE(request: NextRequest) {
   if (unauthorized) return unauthorized;
 
   const { searchParams } = new URL(request.url);
-  const img = searchParams.get("img"); // e.g. "/stories/abc123.webp"
-  if (!img || !img.startsWith("/stories/")) {
+  const img = searchParams.get("img");
+  if (!img) {
     return NextResponse.json({ ok: false, error: "Missing or invalid img" }, { status: 400 });
   }
 
-  deletePublicFile(img);
+  let items = await readJsonData<WorkItem[]>(BLOB_KEY, DATA_PATH, []);
+  if (!items || items.length === 0) {
+    items = getInitialLocalStories();
+  }
 
-  const filename = path.basename(img);
-  const captions = readJsonFile<Record<string, CaptionEntry>>(CAPTIONS_PATH, {});
-  if (filename in captions) {
-    delete captions[filename];
-    writeJsonFile(CAPTIONS_PATH, captions);
+  const target = items.find((i) => i.img === img || path.basename(i.img) === path.basename(img));
+  if (target) {
+    await deletePublicFile(target.img);
+    items = items.filter((i) => i !== target);
+    await writeJsonData(BLOB_KEY, DATA_PATH, items);
   }
 
   return NextResponse.json({ ok: true });

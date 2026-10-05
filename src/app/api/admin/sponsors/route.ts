@@ -1,9 +1,10 @@
 import path from "path";
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, saveUploadedImage, deletePublicFile, readJsonFile, writeJsonFile } from "@/lib/admin-files";
+import { requireAuth, saveUploadedImage, deletePublicFile, readJsonData, writeJsonData } from "@/lib/admin-files";
 import type { SponsorEntry } from "@/app/api/sponsors/route";
 
+const BLOB_KEY = "data/sponsors.json";
 const DATA_PATH = path.join(process.cwd(), "src", "data", "sponsors.json");
 
 export async function POST(request: NextRequest) {
@@ -28,10 +29,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: (err as Error).message }, { status: 400 });
   }
 
-  const sponsors = readJsonFile<SponsorEntry[]>(DATA_PATH, []);
+  const sponsors = await readJsonData<SponsorEntry[]>(BLOB_KEY, DATA_PATH, []);
   const entry: SponsorEntry = { id: crypto.randomBytes(6).toString("hex"), src, alt };
   sponsors.push(entry);
-  writeJsonFile(DATA_PATH, sponsors);
+  await writeJsonData(BLOB_KEY, DATA_PATH, sponsors);
 
   return NextResponse.json({ ok: true, sponsor: entry });
 }
@@ -49,7 +50,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "Missing id" }, { status: 400 });
   }
 
-  const sponsors = readJsonFile<SponsorEntry[]>(DATA_PATH, []);
+  const sponsors = await readJsonData<SponsorEntry[]>(BLOB_KEY, DATA_PATH, []);
   const target = sponsors.find((s) => s.id === id);
   if (!target) {
     return NextResponse.json({ ok: false, error: "Sponsor not found" }, { status: 404 });
@@ -64,11 +65,11 @@ export async function PATCH(request: NextRequest) {
     } catch (err) {
       return NextResponse.json({ ok: false, error: (err as Error).message }, { status: 400 });
     }
-    deletePublicFile(target.src);
+    await deletePublicFile(target.src);
     target.src = newSrc;
   }
 
-  writeJsonFile(DATA_PATH, sponsors);
+  await writeJsonData(BLOB_KEY, DATA_PATH, sponsors);
   return NextResponse.json({ ok: true, sponsor: target });
 }
 
@@ -82,14 +83,18 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "Missing id" }, { status: 400 });
   }
 
-  const sponsors = readJsonFile<SponsorEntry[]>(DATA_PATH, []);
+  const sponsors = await readJsonData<SponsorEntry[]>(BLOB_KEY, DATA_PATH, []);
   const target = sponsors.find((s) => s.id === id);
   if (!target) {
     return NextResponse.json({ ok: false, error: "Sponsor not found" }, { status: 404 });
   }
 
-  deletePublicFile(target.src);
-  writeJsonFile(DATA_PATH, sponsors.filter((s) => s.id !== id));
+  await deletePublicFile(target.src);
+  await writeJsonData(
+    BLOB_KEY,
+    DATA_PATH,
+    sponsors.filter((s) => s.id !== id)
+  );
 
   return NextResponse.json({ ok: true });
 }

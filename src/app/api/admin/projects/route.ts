@@ -6,20 +6,21 @@ import {
   saveUploadedImage,
   saveUploadedModelFile,
   deletePublicFile,
-  readJsonFile,
-  writeJsonFile,
+  readJsonData,
+  writeJsonData,
   listPublicObjectFiles,
 } from "@/lib/admin-files";
 import type { ProjectItem, ProjectStat } from "@/data/projects";
 
+const BLOB_KEY = "data/projects.json";
 const DATA_PATH = path.join(process.cwd(), "src", "data", "projects.json");
 
 export async function GET(request: NextRequest) {
   const unauthorized = requireAuth(request);
   if (unauthorized) return unauthorized;
 
-  const projects = readJsonFile<ProjectItem[]>(DATA_PATH, []);
-  const availableFiles = listPublicObjectFiles();
+  const projects = await readJsonData<ProjectItem[]>(BLOB_KEY, DATA_PATH, []);
+  const availableFiles = await listPublicObjectFiles();
 
   return NextResponse.json({ ok: true, projects, availableFiles });
 }
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "") || crypto.randomBytes(4).toString("hex");
 
-  const projects = readJsonFile<ProjectItem[]>(DATA_PATH, []);
+  const projects = await readJsonData<ProjectItem[]>(BLOB_KEY, DATA_PATH, []);
 
   // Ensure unique ID
   let uniqueId = id;
@@ -135,7 +136,7 @@ export async function POST(request: NextRequest) {
   };
 
   projects.unshift(newProject);
-  writeJsonFile(DATA_PATH, projects);
+  await writeJsonData(BLOB_KEY, DATA_PATH, projects);
 
   return NextResponse.json({ ok: true, project: newProject });
 }
@@ -151,7 +152,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "Missing project id" }, { status: 400 });
   }
 
-  const projects = readJsonFile<ProjectItem[]>(DATA_PATH, []);
+  const projects = await readJsonData<ProjectItem[]>(BLOB_KEY, DATA_PATH, []);
   const target = projects.find((p) => p.id === id);
   if (!target) {
     return NextResponse.json({ ok: false, error: "Project not found" }, { status: 404 });
@@ -192,16 +193,16 @@ export async function PATCH(request: NextRequest) {
 
   const removePreview = form.get("removePreviewImage") === "true";
   if (removePreview) {
-    if (target.previewImage && target.previewImage.startsWith("/projects/")) {
-      deletePublicFile(target.previewImage);
+    if (target.previewImage) {
+      await deletePublicFile(target.previewImage);
     }
     target.previewImage = undefined;
   } else {
     const previewFile = form.get("previewFile");
     if (previewFile instanceof File && previewFile.size > 0) {
       try {
-        if (target.previewImage && target.previewImage.startsWith("/projects/")) {
-          deletePublicFile(target.previewImage);
+        if (target.previewImage) {
+          await deletePublicFile(target.previewImage);
         }
         target.previewImage = await saveUploadedImage(previewFile, "projects");
       } catch (err) {
@@ -232,7 +233,7 @@ export async function PATCH(request: NextRequest) {
     }
   }
 
-  writeJsonFile(DATA_PATH, projects);
+  await writeJsonData(BLOB_KEY, DATA_PATH, projects);
   return NextResponse.json({ ok: true, project: target });
 }
 
@@ -246,19 +247,19 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "Missing project id" }, { status: 400 });
   }
 
-  const projects = readJsonFile<ProjectItem[]>(DATA_PATH, []);
+  const projects = await readJsonData<ProjectItem[]>(BLOB_KEY, DATA_PATH, []);
   const target = projects.find((p) => p.id === id);
   if (!target) {
     return NextResponse.json({ ok: false, error: "Project not found" }, { status: 404 });
   }
 
-  // If previewImage was uniquely uploaded to /projects/, clean it up
-  if (target.previewImage && target.previewImage.startsWith("/projects/")) {
-    deletePublicFile(target.previewImage);
+  // If previewImage exists, clean it up
+  if (target.previewImage) {
+    await deletePublicFile(target.previewImage);
   }
 
   const remaining = projects.filter((p) => p.id !== id);
-  writeJsonFile(DATA_PATH, remaining);
+  await writeJsonData(BLOB_KEY, DATA_PATH, remaining);
 
   return NextResponse.json({ ok: true });
 }
