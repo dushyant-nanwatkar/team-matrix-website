@@ -547,6 +547,7 @@ export default function DepthCarousel({
               fill
               sizes={`${cardWidth}px`}
               draggable={false}
+              unoptimized
             />
             <span
               className="pointer-events-none absolute inset-0 opacity-0"

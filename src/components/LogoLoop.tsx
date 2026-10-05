@@ -240,6 +240,7 @@ export default function LogoLoop({
                       fill
                       sizes={`${logoHeight}px`}
                       draggable={false}
+                      unoptimized
                       className="object-contain transition-transform duration-300 group-hover:scale-105 pointer-events-none"
                     />
                   </div>

@@ -10,10 +10,15 @@ const nextConfig: NextConfig = {
       "./public/objects/*.{glb,gltf,mtl}",
       "./src/data/*.json",
     ],
+    "/api/avatar/view": [
+      "./public/{members,alumni,sponsors,stories,achievements,projects}/**/*",
+      "./public/objects/*.{glb,gltf,mtl}",
+    ],
   },
   outputFileTracingExcludes: {
     // Raw .obj models are huge (100MB+) and gitignored — never bundle them.
     "/api/admin/migrate": ["./public/objects/*.obj", "./public/tempfiles/**/*"],
+    "/api/avatar/view": ["./public/objects/*.obj", "./public/tempfiles/**/*"],
   },
   images: {
     // AVIF first (smaller than WebP when the browser supports it), WebP as

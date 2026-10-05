@@ -594,7 +594,7 @@ function AchievementsTab() {
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={editFilePreview} alt="New replacement" className="w-full h-full object-cover" />
                           ) : (
-                            <Image src={item.image} alt={item.caption} fill className="object-cover" />
+                            <Image src={item.image} alt={item.caption} fill unoptimized className="object-cover" />
                           )}
                           {editFilePreview && (
                             <span className="absolute top-2 left-2 px-2 py-0.5 rounded bg-emerald-600/90 text-white text-[10px] font-bold">
@@ -697,7 +697,7 @@ function AchievementsTab() {
 
                   {/* Thumbnail */}
                   <div className="relative aspect-video w-36 sm:w-44 shrink-0 rounded-xl overflow-hidden border border-white/10 bg-black/80">
-                    <Image src={item.image} alt={item.caption} fill className="object-cover group-hover:scale-105 transition-transform duration-300" sizes="(max-width: 640px) 144px, 176px" />
+                    <Image src={item.image} alt={item.caption} fill unoptimized className="object-cover group-hover:scale-105 transition-transform duration-300" sizes="(max-width: 640px) 144px, 176px" />
                   </div>
 
                   {/* Caption & Note Info */}
@@ -870,7 +870,7 @@ function GalleryTab() {
                 >
                   <div className="flex gap-4">
                     <div className="relative w-20 h-20 shrink-0 rounded-lg overflow-hidden">
-                      <Image src={item.img} alt={item.title ?? ""} fill className="object-cover" />
+                      <Image src={item.img} alt={item.title ?? ""} fill unoptimized className="object-cover" />
                     </div>
                     <div className="flex-1 space-y-3">
                       <div>
@@ -913,7 +913,7 @@ function GalleryTab() {
               ) : (
                 <div key={item.img} className="relative rounded-xl overflow-hidden bg-black/40 border border-white/5">
                   <div className="relative aspect-square">
-                    <Image src={item.img} alt={item.title ?? ""} fill className="object-cover" />
+                    <Image src={item.img} alt={item.title ?? ""} fill unoptimized className="object-cover" />
                   </div>
                   <div className="p-2 space-y-1.5">
                     <p className="text-xs text-slate-300 truncate">{item.title}</p>
@@ -1058,7 +1058,7 @@ function SponsorsTab() {
                 >
                   <div className="flex gap-4">
                     <div className="relative w-16 h-16 shrink-0 rounded-full overflow-hidden bg-white">
-                      <Image src={item.src} alt={item.alt} fill className="object-contain p-1.5" />
+                      <Image src={item.src} alt={item.alt} fill unoptimized className="object-contain p-1.5" />
                     </div>
                     <div className="flex-1 space-y-3">
                       <div>
@@ -1097,7 +1097,7 @@ function SponsorsTab() {
               ) : (
                 <div key={item.id} className="rounded-xl overflow-hidden bg-black/40 border border-white/5 p-3 flex flex-col items-center gap-2">
                   <div className="relative w-16 h-16 rounded-full overflow-hidden bg-white">
-                    <Image src={item.src} alt={item.alt} fill className="object-contain p-1.5" />
+                    <Image src={item.src} alt={item.alt} fill unoptimized className="object-contain p-1.5" />
                   </div>
                   <p className="text-xs text-slate-300 truncate w-full text-center">{item.alt}</p>
                   <div className="flex gap-1.5">
@@ -1302,7 +1302,7 @@ function MembersTab() {
                 >
                   <div className="flex gap-4">
                     <div className="relative w-16 h-16 shrink-0 rounded-full overflow-hidden">
-                      <Image src={item.avatarUrl} alt={item.name} fill className="object-cover" />
+                      <Image src={item.avatarUrl} alt={item.name} fill unoptimized className="object-cover" />
                     </div>
                     <div className="flex-1 grid sm:grid-cols-2 gap-3">
                       <div className="sm:col-span-2">
@@ -1371,7 +1371,7 @@ function MembersTab() {
               ) : (
                 <div key={item.id} className="rounded-xl overflow-hidden bg-black/40 border border-white/5 p-3 flex flex-col items-center gap-2">
                   <div className="relative w-16 h-16 rounded-full overflow-hidden">
-                    <Image src={item.avatarUrl} alt={item.name} fill className="object-cover" />
+                    <Image src={item.avatarUrl} alt={item.name} fill unoptimized className="object-cover" />
                   </div>
                   <p className="text-xs text-slate-200 truncate w-full text-center">{item.name}</p>
                   <p className="text-[11px] text-slate-500 truncate w-full text-center">{item.title}</p>
