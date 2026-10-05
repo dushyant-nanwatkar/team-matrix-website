@@ -1347,9 +1347,11 @@ export default function TubeLightLogo() {
             </Reveal>
 
             <Reveal delayMs={240}>
-              <Link
+              <a
                 ref={applyBtnRef}
-                href="/apply"
+                href="https://forms.gle/tnaLeUBTJMj23GQS8"
+                target="_blank"
+                rel="noopener noreferrer"
                 onMouseMove={handleApplyMouseMove}
                 onMouseLeave={handleApplyMouseLeave}
                 className="
@@ -1366,7 +1368,7 @@ export default function TubeLightLogo() {
               >
                 <span className="absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out" />
                 <span className="relative z-10">APPLY NOW</span>
-              </Link>
+              </a>
             </Reveal>
           </section>
         </div>

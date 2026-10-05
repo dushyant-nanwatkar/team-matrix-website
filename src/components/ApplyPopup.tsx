@@ -136,9 +136,9 @@ export default function ApplyPopup({ isOpen, onClose }: ApplyPopupProps) {
             We&apos;re always looking for passionate engineers, designers, and builders to join Team Matrix.
           </p>
 
-          {/* Apply Now Button Redirecting to Google */}
+          {/* Apply Now Button Redirecting to Recruitment Form */}
           <a
-            href="https://www.google.com"
+            href="https://forms.gle/tnaLeUBTJMj23GQS8"
             target="_blank"
             rel="noopener noreferrer"
             onClick={onClose}
