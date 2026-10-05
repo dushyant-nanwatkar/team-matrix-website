@@ -1,6 +1,20 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // The Blob migration route reads local assets with `fs`. On Vercel, files in
+  // /public are served by the CDN and are NOT available inside serverless
+  // functions unless explicitly traced, so bundle them into that route only.
+  outputFileTracingIncludes: {
+    "/api/admin/migrate": [
+      "./public/{members,alumni,sponsors,stories,achievements,projects}/**/*",
+      "./public/objects/*.{glb,gltf,mtl}",
+      "./src/data/*.json",
+    ],
+  },
+  outputFileTracingExcludes: {
+    // Raw .obj models are huge (100MB+) and gitignored — never bundle them.
+    "/api/admin/migrate": ["./public/objects/*.obj", "./public/tempfiles/**/*"],
+  },
   images: {
     // AVIF first (smaller than WebP when the browser supports it), WebP as
     // the fallback — every image on the site is served through next/image,

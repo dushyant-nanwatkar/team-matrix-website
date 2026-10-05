@@ -17,7 +17,10 @@ export function requireAuth(request: NextRequest): NextResponse | null {
 }
 
 export function isBlobConfigured(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  return Boolean(
+    process.env.BLOB_READ_WRITE_TOKEN ||
+    (process.env.VERCEL_OIDC_TOKEN && process.env.BLOB_STORE_ID)
+  );
 }
 
 // Matches your Vercel Blob store setting ('private' by default from Vercel's quickstart,

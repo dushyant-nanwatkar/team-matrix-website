@@ -14,6 +14,10 @@ const PUBLIC_DIRS = [
   "projects",
 ];
 
+// Uploading every asset can take a while — allow longer than the default.
+export const maxDuration = 300;
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   const unauthorized = requireAuth(request);
   if (unauthorized) return unauthorized;
@@ -28,12 +32,38 @@ export async function POST(request: NextRequest) {
     // empty body is fine
   }
 
-  const token = customToken || process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) {
+  const hasAuth = Boolean(
+    customToken ||
+    process.env.BLOB_READ_WRITE_TOKEN ||
+    (process.env.VERCEL_OIDC_TOKEN && process.env.BLOB_STORE_ID)
+  );
+
+  if (!hasAuth) {
     return NextResponse.json(
-      { ok: false, error: "BLOB_READ_WRITE_TOKEN is not configured on this environment." },
+      {
+        ok: false,
+        code: "BLOB_NOT_CONFIGURED",
+        error:
+          "Vercel Blob is not connected to this project yet. In Vercel Dashboard → Storage → your Blob store → Projects tab, click 'Connect Project' and select team-matrix-website, or paste your token into the prompt.",
+      },
       { status: 400 }
     );
+  }
+
+  const token = customToken || process.env.BLOB_READ_WRITE_TOKEN || undefined;
+
+  // If a custom token was provided in local dev, persist it to .env.local
+  if (customToken) {
+    try {
+      const envPath = path.join(/*turbopackIgnore: true*/ process.cwd(), ".env.local");
+      let content = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf-8") : "";
+      if (!content.includes("BLOB_READ_WRITE_TOKEN")) {
+        content += `\nBLOB_READ_WRITE_TOKEN="${customToken}"\n`;
+        fs.writeFileSync(envPath, content.trim() + "\n", "utf-8");
+      }
+    } catch {
+      // In read-only environments, ignore
+    }
   }
 
   const access = (process.env.BLOB_ACCESS as "public" | "private") || "private";
@@ -49,7 +79,12 @@ export async function POST(request: NextRequest) {
     try {
       const files = fs.readdirSync(dirPath);
       for (const filename of files) {
-        if (filename.startsWith(".") || filename.endsWith(".md") || filename.endsWith(".json")) continue;
+        if (
+          filename.startsWith(".") ||
+          filename.endsWith(".md") ||
+          filename.endsWith(".json") ||
+          filename.endsWith(".obj")
+        ) continue;
 
         const filePath = path.join(dirPath, filename);
         const stat = fs.statSync(filePath);
@@ -68,7 +103,7 @@ export async function POST(request: NextRequest) {
           await put(pathname, buffer, {
             access,
             allowOverwrite: true,
-            token,
+            ...(token ? { token } : {}),
           });
           uploadedFiles++;
         } catch (err) {
@@ -100,12 +135,26 @@ export async function POST(request: NextRequest) {
         access,
         allowOverwrite: true,
         contentType: "application/json",
-        token,
+        ...(token ? { token } : {}),
       });
       uploadedJsons++;
     } catch (err) {
       errors.push(`${item.key}: ${(err as Error).message}`);
     }
+  }
+
+  if (uploadedFiles === 0 && uploadedJsons === 0) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          errors.length > 0
+            ? `Nothing was uploaded. First error: ${errors[0]}`
+            : "No local files were found to migrate in this deployment.",
+        stats: { uploadedFiles, skippedFiles, uploadedJsons, errors: errors.slice(0, 5) },
+      },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({

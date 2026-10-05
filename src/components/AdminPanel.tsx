@@ -113,8 +113,46 @@ function BlobSyncButton() {
     setStatus("syncing");
     setMsg("");
     try {
-      const res = await fetch("/api/admin/migrate", { method: "POST" });
-      const data = await res.json();
+      const parse = async (r: Response) => {
+        const text = await r.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          return {
+            error:
+              r.status === 504
+                ? "Migration timed out on the server. Try again — already-uploaded files are overwritten safely."
+                : `Server returned ${r.status} ${r.statusText || ""}`.trim(),
+          };
+        }
+      };
+
+      let res = await fetch("/api/admin/migrate", { method: "POST" });
+      let data = await parse(res);
+
+      if (!res.ok && data.code === "BLOB_NOT_CONFIGURED") {
+        const inputToken = window.prompt(
+          "BLOB_READ_WRITE_TOKEN is not configured for this environment.\n\n" +
+          "Paste your token from Vercel Dashboard (Storage → Blob → .env.local tab):\n" +
+          "(starts with vercel_blob_rw_...)"
+        );
+
+        if (!inputToken || !inputToken.trim()) {
+          setStatus("idle");
+          setMsg("");
+          return;
+        }
+
+        setStatus("syncing");
+        setMsg("Uploading with provided token...");
+        res = await fetch("/api/admin/migrate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: inputToken.trim() }),
+        });
+        data = await parse(res);
+      }
+
       if (!res.ok) throw new Error(data.error || "Sync failed");
       setStatus("done");
       setMsg(`Synced ${data.stats?.uploadedFiles ?? 0} files & ${data.stats?.uploadedJsons ?? 0} datasets!`);
