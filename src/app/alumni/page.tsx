@@ -9,6 +9,18 @@ import { ALUMNI } from "@/data/alumni";
 
 export default function AlumniPage() {
   const [visible, setVisible] = useState(false);
+  const [alumniList, setAlumniList] = useState(ALUMNI);
+
+  useEffect(() => {
+    fetch("/api/alumni")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setAlumniList(data);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 80);
@@ -73,7 +85,7 @@ export default function AlumniPage() {
 
         {/* Alumni grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-          {ALUMNI.map((a) => (
+          {alumniList.map((a) => (
             <AlumniCard
               key={a.id}
               name={a.name}

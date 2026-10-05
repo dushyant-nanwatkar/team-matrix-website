@@ -1,5 +1,5 @@
 import path from "path";
-import { readJsonData } from "@/lib/admin-files";
+import { readJsonData, getAssetUrl } from "@/lib/admin-files";
 
 export const dynamic = "force-dynamic";
 
@@ -23,10 +23,10 @@ export async function GET() {
 
   const items: AchievementItem[] = list.map((item, index) => {
     const file = item.file || "";
-    const image =
-      file.startsWith("http://") || file.startsWith("https://") || file.startsWith("/")
-        ? file
-        : `/achievements/${file}`;
+    const clean = file.replace(/^\/+/, "");
+    const pathname = clean.startsWith("achievements/") ? clean : `achievements/${clean}`;
+    const image = getAssetUrl(file.startsWith("http://") || file.startsWith("https://") ? file : pathname);
+
     return {
       id: item.id || `ach-${index + 1}`,
       file,

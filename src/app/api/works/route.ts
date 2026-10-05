@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import type { WorkItem } from "@/data/works";
-import { readJsonData } from "@/lib/admin-files";
+import { readJsonData, getAssetUrl } from "@/lib/admin-files";
 
 export const dynamic = "force-dynamic";
 
@@ -46,9 +46,10 @@ export function getInitialLocalStories(): WorkItem[] {
 
 export async function GET() {
   const items = await readJsonData<WorkItem[]>(BLOB_KEY, DATA_PATH, []);
-  if (!items || items.length === 0) {
-    const initial = getInitialLocalStories();
-    return Response.json(initial);
-  }
-  return Response.json(items);
+  const list = !items || items.length === 0 ? getInitialLocalStories() : items;
+  const mapped = list.map((w) => ({
+    ...w,
+    img: getAssetUrl(w.img),
+  }));
+  return Response.json(mapped);
 }

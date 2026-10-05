@@ -102,6 +102,49 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
+function BlobSyncButton() {
+  const [status, setStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
+  const [msg, setMsg] = useState("");
+
+  const handleSync = async () => {
+    if (status === "syncing") return;
+    if (!confirm("Transfer all local images, 3D models (.glb), and JSON data to Vercel Blob?")) return;
+
+    setStatus("syncing");
+    setMsg("");
+    try {
+      const res = await fetch("/api/admin/migrate", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Sync failed");
+      setStatus("done");
+      setMsg(`Synced ${data.stats?.uploadedFiles ?? 0} files & ${data.stats?.uploadedJsons ?? 0} datasets!`);
+      setTimeout(() => setStatus("idle"), 5000);
+    } catch (err) {
+      setStatus("error");
+      setMsg((err as Error).message);
+      setTimeout(() => setStatus("idle"), 6000);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      {msg && (
+        <span className={`text-xs ${status === "error" ? "text-red-400" : "text-emerald-400"}`}>
+          {msg}
+        </span>
+      )}
+      <button
+        onClick={handleSync}
+        disabled={status === "syncing"}
+        className="px-3.5 py-1.5 rounded-full text-xs font-medium border border-cyan-500/30 text-cyan-300 hover:text-white hover:bg-cyan-950/40 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+      >
+        <span>☁️</span>
+        <span>{status === "syncing" ? "Syncing..." : "Transfer to Blob"}</span>
+      </button>
+    </div>
+  );
+}
+
 function Dashboard({ onLoggedOut }: { onLoggedOut: () => void }) {
   const [tab, setTab] = useState<Tab>("projects");
 
@@ -114,12 +157,15 @@ function Dashboard({ onLoggedOut }: { onLoggedOut: () => void }) {
     <div className="min-h-screen w-full bg-black text-white font-sans">
       <header className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-white/10 bg-black/90 backdrop-blur">
         <h1 className="text-lg font-semibold tracking-tight text-white">Team Matrix — Admin</h1>
-        <button
-          onClick={handleLogout}
-          className="px-4 py-1.5 rounded-full text-xs font-medium border border-white/15 text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
-        >
-          Log Out
-        </button>
+        <div className="flex items-center gap-3">
+          <BlobSyncButton />
+          <button
+            onClick={handleLogout}
+            className="px-4 py-1.5 rounded-full text-xs font-medium border border-white/15 text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            Log Out
+          </button>
+        </div>
       </header>
 
       <nav className="flex gap-2 px-6 py-4 border-b border-white/5 overflow-x-auto">

@@ -1,5 +1,5 @@
 import path from "path";
-import { readJsonData } from "@/lib/admin-files";
+import { readJsonData, getAssetUrl } from "@/lib/admin-files";
 
 export const dynamic = "force-dynamic";
 
@@ -14,5 +14,9 @@ export interface SponsorEntry {
 
 export async function GET() {
   const sponsors = await readJsonData<SponsorEntry[]>(BLOB_KEY, DATA_PATH, []);
-  return Response.json(sponsors);
+  const mapped = sponsors.map((s) => ({
+    ...s,
+    src: getAssetUrl(s.src),
+  }));
+  return Response.json(mapped);
 }

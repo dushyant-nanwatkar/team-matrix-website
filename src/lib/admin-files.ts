@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { put, del, list, get } from "@vercel/blob";
 import { isAuthenticated } from "./admin-auth";
+export { getAssetUrl } from "./asset-url";
 
 // Server-only helpers shared by the admin CRUD route handlers. Never import
 // this from a "use client" file.
