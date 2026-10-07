@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const access = (process.env.BLOB_ACCESS as "public" | "private") || "public";
+  const access = (process.env.BLOB_ACCESS as "public" | "private") || "private";
   let uploadedFiles = 0;
   let skippedFiles = 0;
   let errors: string[] = [];

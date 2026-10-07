@@ -62,24 +62,21 @@ export async function GET(request: NextRequest) {
   const ifNoneMatch = request.headers.get("if-none-match");
   const token = process.env.BLOB_READ_WRITE_TOKEN;
 
-  // 1. Direct fetch via storeId on public blob storage
+  // 1. Direct fetch via storeId on blob storage (tries private store first, then public)
   const storeId = resolveBlobStoreId();
   if (storeId) {
-    const publicBlobUrl = `https://${storeId}.public.blob.vercel-storage.com/${pathname}`;
+    const candidateUrls = [
+      `https://${storeId}.private.blob.vercel-storage.com/${pathname}`,
+      `https://${storeId}.public.blob.vercel-storage.com/${pathname}`,
+    ];
 
-    // Try public fetch first, then with Bearer token if private or restricted
-    const authAttempts: (string | undefined)[] = [undefined];
-    if (token) {
-      authAttempts.push(token);
-    }
-
-    for (const authToken of authAttempts) {
+    for (const blobUrl of candidateUrls) {
       try {
         const fetchHeaders: Record<string, string> = {};
         if (ifNoneMatch) fetchHeaders["If-None-Match"] = ifNoneMatch;
-        if (authToken) fetchHeaders["Authorization"] = `Bearer ${authToken}`;
+        if (token) fetchHeaders["Authorization"] = `Bearer ${token}`;
 
-        const res = await fetch(publicBlobUrl, {
+        const res = await fetch(blobUrl, {
           headers: Object.keys(fetchHeaders).length > 0 ? fetchHeaders : undefined,
         });
 
@@ -96,7 +93,7 @@ export async function GET(request: NextRequest) {
             status: 200,
             headers: {
               "Content-Type": contentType,
-              "Cache-Control": "public, max-age=31536000, immutable",
+              "Cache-Control": "private, max-age=31536000, immutable",
               "Access-Control-Allow-Origin": "*",
               "X-Content-Type-Options": "nosniff",
               ...(etag ? { ETag: etag } : {}),
@@ -104,38 +101,39 @@ export async function GET(request: NextRequest) {
           });
         }
       } catch {
-        // Continue to next attempt
+        // Continue to next URL candidate
       }
     }
   }
 
-  // 2. Try @vercel/blob SDK `get` (tries public first, then private)
-  if (token) {
-    const accessModes: ("public" | "private")[] =
-      process.env.BLOB_ACCESS === "private" ? ["private", "public"] : ["public", "private"];
+  // 2. Try @vercel/blob SDK `get` (tries private first, then public)
+  const accessModes: ("private" | "public")[] =
+    process.env.BLOB_ACCESS === "public" ? ["public", "private"] : ["private", "public"];
 
-    for (const access of accessModes) {
-      try {
-        const result = await get(pathname, { access, token });
-        if (result && result.statusCode === 200 && result.stream) {
-          const contentType = result.blob.contentType || defaultContentType;
-          const etag = result.blob.etag;
-          const buffer = Buffer.from(await new Response(result.stream).arrayBuffer());
+  for (const access of accessModes) {
+    try {
+      const getOptions: { access: "private" | "public"; token?: string } = { access };
+      if (token) getOptions.token = token;
 
-          return new NextResponse(buffer, {
-            status: 200,
-            headers: {
-              "Content-Type": contentType,
-              "Cache-Control": "public, max-age=31536000, immutable",
-              "Access-Control-Allow-Origin": "*",
-              "X-Content-Type-Options": "nosniff",
-              ...(etag ? { ETag: etag } : {}),
-            },
-          });
-        }
-      } catch {
-        // Continue to next access mode
+      const result = await get(pathname, getOptions);
+      if (result && result.statusCode === 200 && result.stream) {
+        const contentType = result.blob.contentType || defaultContentType;
+        const etag = result.blob.etag;
+        const buffer = Buffer.from(await new Response(result.stream).arrayBuffer());
+
+        return new NextResponse(buffer, {
+          status: 200,
+          headers: {
+            "Content-Type": contentType,
+            "Cache-Control": "private, max-age=31536000, immutable",
+            "Access-Control-Allow-Origin": "*",
+            "X-Content-Type-Options": "nosniff",
+            ...(etag ? { ETag: etag } : {}),
+          },
+        });
       }
+    } catch {
+      // Continue to next access mode
     }
   }
 

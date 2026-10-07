@@ -13,11 +13,20 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: 'Missing file body' }, { status: 400 });
   }
 
-  const access = (process.env.BLOB_ACCESS as 'public' | 'private') || 'public';
+  const access = (process.env.BLOB_ACCESS as 'public' | 'private') || 'private';
 
-  const blob = await put(filename, request.body, {
-    access,
-  });
+  let blob;
+  try {
+    blob = await put(filename, request.body, { access });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("private store") || msg.includes("public access") || msg.includes("private access")) {
+      const fallbackAccess = access === "private" ? "public" : "private";
+      blob = await put(filename, request.body, { access: fallbackAccess });
+    } else {
+      throw err;
+    }
+  }
 
   return NextResponse.json(blob);
 }

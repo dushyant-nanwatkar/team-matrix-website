@@ -27,10 +27,10 @@ export function isBlobConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
-// Matches your Vercel Blob store setting ('public' by default on Vercel,
-// or 'private' if explicitly configured)
+// Matches your Vercel Blob store setting ('private' for private stores,
+// or 'public' if explicitly configured)
 const BLOB_ACCESS: "public" | "private" =
-  (process.env.BLOB_ACCESS as "public" | "private") || "public";
+  (process.env.BLOB_ACCESS as "public" | "private") || "private";
 
 const ALLOWED_IMAGE_EXTS: Record<string, string> = {
   "image/webp": ".webp",
@@ -64,12 +64,26 @@ export async function saveUploadedImage(file: File, subdir: string): Promise<str
 
   if (isBlobConfigured()) {
     const pathname = `${subdir}/${filename}`;
-    const blob = await put(pathname, buffer, {
-      access: BLOB_ACCESS,
-      contentType: file.type || `image/${ext.replace(".", "")}`,
-    });
+    let blob;
+    try {
+      blob = await put(pathname, buffer, {
+        access: BLOB_ACCESS,
+        contentType: file.type || `image/${ext.replace(".", "")}`,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("private store") || msg.includes("public access") || msg.includes("private access")) {
+        const fallbackAccess = BLOB_ACCESS === "private" ? "public" : "private";
+        blob = await put(pathname, buffer, {
+          access: fallbackAccess,
+          contentType: file.type || `image/${ext.replace(".", "")}`,
+        });
+      } else {
+        throw err;
+      }
+    }
 
-    return BLOB_ACCESS === "private"
+    return (blob.url.includes(".private.") || BLOB_ACCESS === "private")
       ? `/api/avatar/view?pathname=${encodeURIComponent(blob.pathname)}`
       : blob.url;
   }
@@ -218,10 +232,23 @@ export async function saveUploadedModelFile(file: File, subdir = "objects"): Pro
 
   if (isBlobConfigured()) {
     const pathname = `${subdir}/${targetFilename}`;
-    const blob = await put(pathname, buffer, {
-      access: BLOB_ACCESS,
-    });
-    return BLOB_ACCESS === "private"
+    let blob;
+    try {
+      blob = await put(pathname, buffer, {
+        access: BLOB_ACCESS,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("private store") || msg.includes("public access") || msg.includes("private access")) {
+        const fallbackAccess = BLOB_ACCESS === "private" ? "public" : "private";
+        blob = await put(pathname, buffer, {
+          access: fallbackAccess,
+        });
+      } else {
+        throw err;
+      }
+    }
+    return (blob.url.includes(".private.") || BLOB_ACCESS === "private")
       ? `/api/avatar/view?pathname=${encodeURIComponent(blob.pathname)}`
       : blob.url;
   }
