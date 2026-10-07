@@ -27,10 +27,10 @@ export function isBlobConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
-// Matches your Vercel Blob store setting ('private' by default from Vercel's quickstart,
-// or 'public' if you configured a public store)
+// Matches your Vercel Blob store setting ('public' by default on Vercel,
+// or 'private' if explicitly configured)
 const BLOB_ACCESS: "public" | "private" =
-  (process.env.BLOB_ACCESS as "public" | "private") || "private";
+  (process.env.BLOB_ACCESS as "public" | "private") || "public";
 
 const ALLOWED_IMAGE_EXTS: Record<string, string> = {
   "image/webp": ".webp",
@@ -144,12 +144,26 @@ export async function readJsonData<T>(key: string, localFilePath: string, fallba
     try {
       // useCache: false — admin edits overwrite the same key, so always read the
       // latest version from origin instead of a CDN-cached copy.
-      const result = await get(key, { access: BLOB_ACCESS, useCache: false });
+      let result = await get(key, { access: BLOB_ACCESS, useCache: false });
+      if (!result) {
+        const altAccess = BLOB_ACCESS === "public" ? "private" : "public";
+        result = await get(key, { access: altAccess, useCache: false });
+      }
       if (result && result.stream) {
         const text = await new Response(result.stream).text();
         return JSON.parse(text) as T;
       }
     } catch (err) {
+      try {
+        const altAccess = BLOB_ACCESS === "public" ? "private" : "public";
+        const result = await get(key, { access: altAccess, useCache: false });
+        if (result && result.stream) {
+          const text = await new Response(result.stream).text();
+          return JSON.parse(text) as T;
+        }
+      } catch {
+        // Fall back to local file
+      }
       console.warn(`[blob] Could not read ${key} from Blob, falling back to local file:`, err);
     }
   }
@@ -167,8 +181,18 @@ export async function writeJsonData<T>(key: string, localFilePath: string, data:
         cacheControlMaxAge: 60,
       });
     } catch (err) {
-      console.error(`[blob] Failed to write ${key} to Blob:`, err);
-      throw err;
+      const altAccess = BLOB_ACCESS === "public" ? "private" : "public";
+      try {
+        await put(key, JSON.stringify(data, null, 2), {
+          access: altAccess,
+          allowOverwrite: true,
+          contentType: "application/json",
+          cacheControlMaxAge: 60,
+        });
+      } catch (err2) {
+        console.error(`[blob] Failed to write ${key} to Blob:`, err2);
+        throw err2;
+      }
     }
   }
   try {

@@ -27,7 +27,8 @@ export function toStoragePathname(pathOrUrl?: string | null): string {
   try {
     if (pathOrUrl.includes("/api/avatar/view")) {
       const u = new URL(pathOrUrl, "http://localhost");
-      return (u.searchParams.get("pathname") || "").replace(/^\/+/, "");
+      const p = u.searchParams.get("pathname") || "";
+      return decodeURIComponent(p).replace(/^\/+/, "");
     }
     if (pathOrUrl.startsWith("http://") || pathOrUrl.startsWith("https://")) {
       return decodeURIComponent(new URL(pathOrUrl).pathname).replace(/^\/+/, "");

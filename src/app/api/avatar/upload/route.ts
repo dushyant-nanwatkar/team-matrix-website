@@ -13,7 +13,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: 'Missing file body' }, { status: 400 });
   }
 
-  const access = (process.env.BLOB_ACCESS as 'public' | 'private') || 'private';
+  const access = (process.env.BLOB_ACCESS as 'public' | 'private') || 'public';
 
   const blob = await put(filename, request.body, {
     access,

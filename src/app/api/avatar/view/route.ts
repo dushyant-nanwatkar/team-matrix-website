@@ -20,68 +20,122 @@ const MIME_TYPES: Record<string, string> = {
   ".mp4": "video/mp4",
 };
 
+// Extracts storeId from BLOB_STORE_ID or from the standard BLOB_READ_WRITE_TOKEN
+// (format: vercel_blob_rw_<storeId>_<secret>)
+function resolveBlobStoreId(): string | null {
+  const envStoreId = process.env.BLOB_STORE_ID;
+  if (envStoreId) {
+    return envStoreId.replace(/^store_/, "").trim();
+  }
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (token) {
+    const parts = token.split("_");
+    if (parts.length >= 4 && parts[0] === "vercel" && parts[1] === "blob") {
+      return parts[3];
+    }
+  }
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   const rawPathname = request.nextUrl.searchParams.get("pathname");
   if (!rawPathname) {
     return NextResponse.json({ error: "Missing pathname" }, { status: 400 });
   }
 
-  const pathname = rawPathname.replace(/^\/+/, "");
+  // Safely normalize the storage pathname
+  let pathname = rawPathname.replace(/^\/+/, "");
+  try {
+    if (pathname.includes("http://") || pathname.includes("https://")) {
+      const parsed = new URL(pathname.startsWith("http") ? pathname : `https://${pathname}`);
+      pathname = decodeURIComponent(parsed.pathname).replace(/^\/+/, "");
+    } else {
+      pathname = decodeURIComponent(pathname);
+    }
+  } catch {
+    // Keep pathname as is if decode fails
+  }
+  pathname = pathname.replace(/^\/+/, "");
+
   const ext = path.extname(pathname.split("?")[0]).toLowerCase();
   const defaultContentType = MIME_TYPES[ext] || "application/octet-stream";
+  const ifNoneMatch = request.headers.get("if-none-match");
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
 
-  // 1. If BLOB_STORE_ID is set, public store assets are directly reachable via HTTPS.
-  // This bypasses SDK authentication issues when client GET requests lack an OIDC token.
-  const rawStoreId = process.env.BLOB_STORE_ID;
-  if (rawStoreId) {
-    const storeId = rawStoreId.replace(/^store_/, "").trim();
+  // 1. Direct fetch via storeId on public blob storage
+  const storeId = resolveBlobStoreId();
+  if (storeId) {
     const publicBlobUrl = `https://${storeId}.public.blob.vercel-storage.com/${pathname}`;
 
-    try {
-      const ifNoneMatch = request.headers.get("if-none-match");
-      const res = await fetch(publicBlobUrl, {
-        headers: ifNoneMatch ? { "If-None-Match": ifNoneMatch } : undefined,
-      });
+    // Try public fetch first, then with Bearer token if private or restricted
+    const authAttempts: (string | undefined)[] = [undefined];
+    if (token) {
+      authAttempts.push(token);
+    }
 
-      if (res.status === 304) {
-        return new NextResponse(null, { status: 304 });
-      }
+    for (const authToken of authAttempts) {
+      try {
+        const fetchHeaders: Record<string, string> = {};
+        if (ifNoneMatch) fetchHeaders["If-None-Match"] = ifNoneMatch;
+        if (authToken) fetchHeaders["Authorization"] = `Bearer ${authToken}`;
 
-      if (res.ok && res.body) {
-        const contentType = res.headers.get("content-type") || defaultContentType;
-        const etag = res.headers.get("etag");
-        return new NextResponse(res.body as unknown as ReadableStream, {
-          status: 200,
-          headers: {
-            "Content-Type": contentType,
-            "Cache-Control": "public, max-age=31536000, immutable",
-            "X-Content-Type-Options": "nosniff",
-            ...(etag ? { ETag: etag } : {}),
-          },
+        const res = await fetch(publicBlobUrl, {
+          headers: Object.keys(fetchHeaders).length > 0 ? fetchHeaders : undefined,
         });
+
+        if (res.status === 304) {
+          return new NextResponse(null, { status: 304 });
+        }
+
+        if (res.ok) {
+          const contentType = res.headers.get("content-type") || defaultContentType;
+          const etag = res.headers.get("etag");
+          const buffer = Buffer.from(await res.arrayBuffer());
+
+          return new NextResponse(buffer, {
+            status: 200,
+            headers: {
+              "Content-Type": contentType,
+              "Cache-Control": "public, max-age=31536000, immutable",
+              "Access-Control-Allow-Origin": "*",
+              "X-Content-Type-Options": "nosniff",
+              ...(etag ? { ETag: etag } : {}),
+            },
+          });
+        }
+      } catch {
+        // Continue to next attempt
       }
-    } catch (err) {
-      // Continue to next strategy if fetch failed
     }
   }
 
-  // 2. If BLOB_READ_WRITE_TOKEN is set, use SDK `get` (supports private store access)
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  // 2. Try @vercel/blob SDK `get` (tries public first, then private)
   if (token) {
-    const access = (process.env.BLOB_ACCESS as "public" | "private") || "private";
-    try {
-      const result = await get(pathname, { access, token });
-      if (result && result.statusCode === 200 && result.stream) {
-        return new NextResponse(result.stream, {
-          headers: {
-            "Content-Type": result.blob.contentType || defaultContentType,
-            "Cache-Control": "public, max-age=31536000, immutable",
-            "X-Content-Type-Options": "nosniff",
-          },
-        });
+    const accessModes: ("public" | "private")[] =
+      process.env.BLOB_ACCESS === "private" ? ["private", "public"] : ["public", "private"];
+
+    for (const access of accessModes) {
+      try {
+        const result = await get(pathname, { access, token });
+        if (result && result.statusCode === 200 && result.stream) {
+          const contentType = result.blob.contentType || defaultContentType;
+          const etag = result.blob.etag;
+          const buffer = Buffer.from(await new Response(result.stream).arrayBuffer());
+
+          return new NextResponse(buffer, {
+            status: 200,
+            headers: {
+              "Content-Type": contentType,
+              "Cache-Control": "public, max-age=31536000, immutable",
+              "Access-Control-Allow-Origin": "*",
+              "X-Content-Type-Options": "nosniff",
+              ...(etag ? { ETag: etag } : {}),
+            },
+          });
+        }
+      } catch {
+        // Continue to next access mode
       }
-    } catch {
-      // Fall through to local fallback
     }
   }
 
@@ -95,6 +149,7 @@ export async function GET(request: NextRequest) {
         headers: {
           "Content-Type": defaultContentType,
           "Cache-Control": "public, max-age=31536000, immutable",
+          "Access-Control-Allow-Origin": "*",
           "X-Content-Type-Options": "nosniff",
         },
       });
